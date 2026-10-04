@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glimmer">
+<meta name="theme-color" content="#0f1a33">
+<title>Glimmer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#0f1a33; --dusk:#3e3460; --moss:#6f9a52; --slate:#2f3850;
+  --honey:#f4e27a; --core:#fff8c4; --teal:#7ef0d8; --ink:#e9ecf7;
+  --u:1px; --st:0px;
+}
+html,body{margin:0;height:100%;background:#0c1529;overflow:hidden;touch-action:none;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+#stage{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);overflow:hidden}
+#c{display:block;width:100%;height:100%}
+#safe{position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden}
+
+#ui{position:absolute;inset:0;pointer-events:none;color:var(--ink);
+  font-family:"Nunito",ui-rounded,"SF Pro Rounded",system-ui,sans-serif}
+.hidden{opacity:0;visibility:hidden}
+.fade{transition:opacity .28s ease,visibility .28s}
+
+#title{position:absolute;left:0;right:0;top:13%;text-align:center}
+#title h1{margin:0;font-family:"Lilita One","Nunito",system-ui,sans-serif;font-weight:400;
+  font-size:calc(var(--u)*58);line-height:1;color:#fff4c2;letter-spacing:.01em;
+  text-shadow:0 0 calc(var(--u)*22) rgba(244,226,122,.55),0 calc(var(--u)*4) 0 #2a2347}
+#title p{margin:calc(var(--u)*10) auto 0;max-width:calc(var(--u)*240);font-size:calc(var(--u)*15);
+  line-height:1.35;font-weight:600;color:#c4cde6}
+
+#hint{position:absolute;left:0;right:0;top:61%;text-align:center}
+#hint span{display:inline-block;padding:calc(var(--u)*9) calc(var(--u)*20);border-radius:calc(var(--u)*30);
+  background:rgba(15,26,51,.6);border:1px solid rgba(126,240,216,.4);
+  font-weight:800;font-size:calc(var(--u)*17);color:#e6fffa;animation:breathe 1.8s ease-in-out infinite}
+#hint small{display:block;margin-top:calc(var(--u)*10);font-size:calc(var(--u)*12.5);font-weight:600;color:#9aa6c4}
+@keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 0 rgba(126,240,216,0)}
+  50%{transform:scale(1.05);box-shadow:0 0 calc(var(--u)*18) rgba(126,240,216,.35)}}
+
+.icon{position:absolute;top:calc(var(--st) + var(--u)*12);width:calc(var(--u)*40);height:calc(var(--u)*40);
+  pointer-events:auto;border:0;padding:0;border-radius:50%;background:rgba(15,26,51,.5);
+  color:#dfe6f7;display:grid;place-items:center;cursor:pointer}
+.icon svg{width:55%;height:55%}
+.icon:focus-visible,#again:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+#pauseBtn{left:calc(var(--u)*12)}
+#muteBtn{right:calc(var(--u)*12)}
+#muteBtn .off{display:none}
+#muteBtn.muted .on{display:none}
+#muteBtn.muted .off{display:block}
+
+#paused,#over{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+#paused{background:rgba(8,12,26,.45)}
+#paused h2{margin:0;font-family:"Lilita One",system-ui,sans-serif;font-weight:400;font-size:calc(var(--u)*44);color:#fff4c2}
+#paused p{margin:calc(var(--u)*6) 0 0;font-weight:700;font-size:calc(var(--u)*15);color:#c4cde6}
+
+/* the game-over card is a weathered standing stone with a moss cap */
+.stone{position:relative;width:calc(var(--u)*244);padding:calc(var(--u)*24) calc(var(--u)*20) calc(var(--u)*20);
+  background:linear-gradient(100deg,#5d6880 0%,#465069 30%,#343c53 100%);
+  border-radius:calc(var(--u)*14) calc(var(--u)*14) calc(var(--u)*6) calc(var(--u)*6);
+  box-shadow:inset calc(var(--u)*3) 0 0 rgba(170,190,230,.25),0 calc(var(--u)*10) calc(var(--u)*30) rgba(4,6,16,.55);
+  transform:translateY(calc(var(--u)*-14))}
+.stone::before{content:"";position:absolute;left:calc(var(--u)*-6);right:calc(var(--u)*-6);top:calc(var(--u)*-7);
+  height:calc(var(--u)*16);border-radius:calc(var(--u)*10);
+  background:radial-gradient(circle at 12% 60%,#86b366 0 28%,transparent 30%),
+             radial-gradient(circle at 38% 40%,#7aa85c 0 30%,transparent 32%),
+             radial-gradient(circle at 66% 55%,#86b366 0 26%,transparent 28%),
+             radial-gradient(circle at 90% 45%,#78a45a 0 30%,transparent 32%),#5f8a47}
+#over h2{margin:0;font-family:"Lilita One",system-ui,sans-serif;font-weight:400;font-size:calc(var(--u)*34);
+  color:#fff4c2;text-shadow:0 calc(var(--u)*3) 0 #241e3d}
+.nums{display:flex;justify-content:space-around;margin:calc(var(--u)*14) 0 calc(var(--u)*10)}
+.nums small{display:block;font-weight:700;font-size:calc(var(--u)*13);color:#b9c3dd}
+.nums b{display:block;font-family:"Lilita One",system-ui,sans-serif;font-weight:400;font-size:calc(var(--u)*40);line-height:1.05;color:#fff}
+#newBest{display:inline-block;margin-bottom:calc(var(--u)*8);padding:calc(var(--u)*3) calc(var(--u)*12);
+  border-radius:calc(var(--u)*20);background:rgba(244,226,122,.16);color:var(--honey);font-weight:800;font-size:calc(var(--u)*13)}
+#rank{display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*10);
+  padding:calc(var(--u)*9) 0;border-top:1px solid rgba(10,14,30,.35);border-bottom:1px solid rgba(170,190,230,.12)}
+#rank .orb{width:calc(var(--u)*22);height:calc(var(--u)*22);border-radius:50%;flex:none;
+  background:radial-gradient(circle at 40% 38%,#fff 0 12%,var(--orb,#596079) 40%,rgba(0,0,0,0) 72%);
+  box-shadow:0 0 calc(var(--u)*14) var(--orbGlow,transparent)}
+#rank .txt{text-align:left;line-height:1.2}
+#rank .txt b{display:block;font-size:calc(var(--u)*16);font-weight:800;color:#f3f5fb}
+#rank .txt span{font-size:calc(var(--u)*12.5);font-weight:600;color:#aeb8d4}
+#again{margin-top:calc(var(--u)*16);pointer-events:auto;border:0;cursor:pointer;
+  font-family:"Lilita One",system-ui,sans-serif;font-size:calc(var(--u)*20);color:#2a2140;
+  padding:calc(var(--u)*10) calc(var(--u)*30);border-radius:calc(var(--u)*24);
+  background:radial-gradient(circle at 50% 30%,#fffbe0,#f4e27a 60%,#d9bf4a);
+  box-shadow:0 0 calc(var(--u)*20) rgba(244,226,122,.45),0 calc(var(--u)*3) 0 #8a7424;
+  transition:opacity .25s .4s}
+#over.hidden #again{opacity:0;transition:none}
+#over .stone{transition:transform .32s cubic-bezier(.2,1.4,.4,1)}
+#over.hidden .stone{transform:translateY(calc(var(--u)*30))}
+
+@media (prefers-reduced-motion:reduce){
+  #hint span{animation:none}
+  #over .stone{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="safe"></div>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="ui">
+    <div id="title" class="fade">
+      <h1>Glimmer</h1>
+      <p>Guide your firefly through the gaps in the old stones.</p>
+    </div>
+    <div id="hint" class="fade"><span>Tap to fly</span><small>or press space</small></div>
+    <button id="pauseBtn" class="icon fade hidden" aria-label="Pause">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+    </button>
+    <button id="muteBtn" class="icon" aria-label="Mute sound">
+      <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+    </button>
+    <div id="paused" class="fade hidden"><div><h2>Paused</h2><p>Tap to resume</p></div></div>
+    <div id="over" class="fade hidden">
+      <div class="stone">
+        <h2>Game over</h2>
+        <div class="nums">
+          <div><small>Score</small><b id="oScore">0</b></div>
+          <div><small>Best</small><b id="oBest">0</b></div>
+        </div>
+        <div id="newBest" hidden>New best</div>
+        <div id="rank"><i class="orb"></i><div class="txt"><b id="rankName"></b><span id="rankNext"></span></div></div>
+        <button id="again">Fly again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- setup ---------- */
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+const stage = document.getElementById('stage');
+const $ = id => document.getElementById(id);
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rand = (a, b) => a + Math.random() * (b - a);
+function mulberry(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// Tuning (logical pixels, seconds)
+const T = {
+  gravity: 1550, flapV: -470, maxFall: 720,
+  speed0: 150, speedMax: 205,
+  gap0: 168, gapMin: 132, rampScore: 45,
+  pillarW: 62, capH: 20, capOver: 6, moss: 7,
+  spacing: 205, maxShift: 175,
+  r: 11
+};
+const GROUND_H = 84;
+const DT = 1 / 120;
+
+let W = 360, H = 640, scale = 1, R = 1, GROUND_Y = H - GROUND_H, FX = 108, safeTop = 0;
+
+const RANKS = [
+  { n: 'Spark',   s: 10, c: '#f4e27a' },
+  { n: 'Ember',   s: 20, c: '#ffb36b' },
+  { n: 'Lantern', s: 35, c: '#fff2a8' },
+  { n: 'Beacon',  s: 50, c: '#7ef0d8' }
+];
+
+const S = {
+  mode: 'ready', t: 0, score: 0, best: 0, firstRun: true, newBest: false,
+  fly: { x: FX, y: 250, vy: 0, ang: 0, wing: 0, flare: 0 },
+  readyY: 250, pillars: [], lastGapY: null, scroll: 0,
+  parts: [], motes: [], stars: [],
+  shake: 0, flash: 0, overT: 0, panelShown: false, countdown: 0, trailT: 0, pop: 0, light: 1,
+  auto: false
+};
+
+/* ---------- storage (best score) ---------- */
+const store = {
+  async get(k){
+    if (window.storage && window.storage.get) { try { const r = await window.storage.get(k, false); return r ? r.value : null; } catch (e) { return null; } }
+    try { return window.localStorage.getItem(k); } catch (e) { return null; }
+  },
+  async set(k, v){
+    if (window.storage && window.storage.set) { try { await window.storage.set(k, String(v), false); } catch (e) {} return; }
+    try { window.localStorage.setItem(k, String(v)); } catch (e) {}
+  }
+};
+
+/* ---------- audio (synthesised, no files) ---------- */
+let actx = null, master = null, muted = false;
+function initAudio(){
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(actx.destination);
+  } catch (e) { actx = null; }
+}
+function tone(f1, f2, dur, type, vol, delay){
+  if (!actx || muted) return;
+  const t = actx.currentTime + (delay || 0);
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(f1, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03);
+}
+let noiseBuf = null;
+function noise(dur, vol, freq){
+  if (!actx || muted) return;
+  if (!noiseBuf) {
+    noiseBuf = actx.createBuffer(1, actx.sampleRate * 0.5, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t = actx.currentTime, s = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = freq || 900;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur);
+}
+const sfx = {
+  flap(){ tone(540, 900, 0.085, 'sine', 0.16); },
+  score(){ tone(988, 0, 0.12, 'triangle', 0.2); tone(1480, 0, 0.2, 'triangle', 0.16, 0.07); },
+  hit(){ noise(0.22, 0.5, 700); tone(170, 45, 0.35, 'sine', 0.42); },
+  fall(){ tone(620, 140, 0.55, 'sine', 0.1, 0.12); },
+  best(){ [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0, 0.22, 'triangle', 0.14, 0.08 * i)); },
+  tick(){ tone(660, 0, 0.07, 'square', 0.05); }
+};
+function vibrate(ms){ try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+/* ---------- prerendered art ---------- */
+const A = {};
+function mk(w, h, res){
+  res = res || R;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * res)); c.height = Math.max(1, Math.ceil(h * res));
+  const g = c.getContext('2d'); g.scale(c.width / w, c.height / h);
+  return { c, g, w, h };
+}
+function glowSprite(size, rgb, a0){
+  const o = mk(size, size), g = o.g, r = size / 2;
+  const gr = g.createRadialGradient(r, r, 0, r, r, r);
+  gr.addColorStop(0, `rgba(255,255,240,${a0})`);
+  gr.addColorStop(0.18, `rgba(${rgb},${a0 * 0.75})`);
+  gr.addColorStop(0.5, `rgba(${rgb},${a0 * 0.22})`);
+  gr.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  return o;
+}
+
+function buildAssets(){
+  const rnd = mulberry(7);
+
+  // sky
+  A.sky = mk(W, H); { const g = A.sky.g;
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, '#0d1730'); gr.addColorStop(0.45, '#1b2a50'); gr.addColorStop(0.78, '#3a3360'); gr.addColorStop(1, '#553d63');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    const mx = W * 0.78, my = H * 0.15;
+    const mg = g.createRadialGradient(mx, my, 10, mx, my, 110);
+    mg.addColorStop(0, 'rgba(255,240,205,.32)'); mg.addColorStop(1, 'rgba(255,240,205,0)');
+    g.fillStyle = mg; g.fillRect(mx - 110, my - 110, 220, 220);
+    g.fillStyle = '#f2ead0'; g.beginPath(); g.arc(mx, my, 21, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(120,110,140,.16)';
+    [[-6, -5, 5], [7, 4, 4], [-2, 9, 3], [9, -8, 2.5]].forEach(([x, y, r]) => { g.beginPath(); g.arc(mx + x, my + y, r, 0, Math.PI * 2); g.fill(); });
+    const hz = g.createLinearGradient(0, GROUND_Y - 160, 0, GROUND_Y);
+    hz.addColorStop(0, 'rgba(126,240,216,0)'); hz.addColorStop(1, 'rgba(126,240,216,.07)');
+    g.fillStyle = hz; g.fillRect(0, GROUND_Y - 160, W, 160);
+  }
+
+  // stars
+  S.stars = [];
+  for (let i = 0; i < 55; i++) S.stars.push({ x: rnd() * W, y: rnd() * H * 0.55, s: rnd() < 0.15 ? 2 : 1.2, ph: rnd() * 6.28, sp: 0.8 + rnd() * 2 });
+
+  // hills — sine sums with whole cycles across W so the tile wraps seamlessly
+  const hills = (h, base, waves, color, reeds) => {
+    const o = mk(W, h), g = o.g;
+    const yAt = x => { let y = base; for (const [a, k, p] of waves) y += a * Math.sin(Math.PI * 2 * k * x / W + p); return y; };
+    g.fillStyle = color; g.beginPath(); g.moveTo(0, h);
+    for (let x = 0; x <= W + 1; x += 2) g.lineTo(x, yAt(x));
+    g.lineTo(W + 1, h); g.closePath(); g.fill();
+    if (reeds) {
+      g.strokeStyle = color; g.fillStyle = color; g.lineCap = 'round';
+      const rn = mulberry(31);
+      for (let i = 0; i < 14; i++) {
+        const x = 8 + rn() * (W - 16), y = yAt(x) + 2, hh = 18 + rn() * 26, lean = (rn() - 0.5) * 6;
+        g.lineWidth = 1.6; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + lean * 0.3, y - hh * 0.6, x + lean, y - hh); g.stroke();
+        g.beginPath(); g.ellipse(x + lean, y - hh + 4, 2.4, 6, lean * 0.03, 0, Math.PI * 2); g.fill();
+      }
+    }
+    return o;
+  };
+  A.far = hills(170, 72, [[22, 2, 0.6], [12, 5, 1.7], [5, 11, 0.2]], '#283460');
+  A.near = hills(130, 62, [[14, 3, 2.1], [8, 7, 0.4], [3, 15, 1.1]], '#1a2444', true);
+
+  // ground tile
+  const GW = 72;
+  A.ground = mk(GW, GROUND_H + 8); { const g = A.ground.g, top = 8;
+    const gr = g.createLinearGradient(0, top, 0, GROUND_H + top);
+    gr.addColorStop(0, '#2b2c42'); gr.addColorStop(1, '#141629');
+    g.fillStyle = gr; g.fillRect(0, top, GW, GROUND_H);
+    const rn = mulberry(11);
+    g.fillStyle = 'rgba(70,74,104,.55)';
+    for (let i = 0; i < 7; i++) { g.beginPath(); g.ellipse(4 + rn() * (GW - 8), top + 18 + rn() * (GROUND_H - 26), 2 + rn() * 3, 1.3 + rn() * 1.5, 0, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#4c7744'; g.fillRect(0, top, GW, 9);
+    g.fillStyle = '#5f8a4e';
+    for (let x = 0; x < GW; x += 6) { g.beginPath(); g.arc(x + 3, top + 2, 4, Math.PI, 0); g.fill(); }
+    g.strokeStyle = '#6f9a52'; g.lineWidth = 1.4; g.lineCap = 'round';
+    for (let i = 0; i < 9; i++) { const x = 4 + i * 8 + rn() * 3, hh = 4 + rn() * 5; g.beginPath(); g.moveTo(x, top + 3); g.lineTo(x + (rn() - 0.5) * 3, top + 3 - hh); g.stroke(); }
+    g.fillStyle = 'rgba(10,12,24,.35)'; g.fillRect(0, top + 9, GW, 3);
+  }
+
+  // pillar body: tall strip, sampled at a per-pillar offset for variety
+  const PW = T.pillarW, BH = H + 120;
+  A.body = mk(PW, BH); { const g = A.body.g;
+    const gr = g.createLinearGradient(0, 0, PW, 0);
+    gr.addColorStop(0, '#7f8ca8'); gr.addColorStop(0.12, '#606c86'); gr.addColorStop(0.6, '#454e66'); gr.addColorStop(1, '#2c3248');
+    g.fillStyle = gr; g.fillRect(0, 0, PW, BH);
+    const rn = mulberry(23);
+    g.lineWidth = 1.5;
+    for (let y = 0, row = 0; y < BH; y += 34, row++) {
+      g.strokeStyle = 'rgba(14,18,34,.5)'; g.beginPath(); g.moveTo(0, y); g.lineTo(PW, y); g.stroke();
+      g.strokeStyle = 'rgba(170,185,220,.12)'; g.beginPath(); g.moveTo(0, y + 1.5); g.lineTo(PW, y + 1.5); g.stroke();
+      const jx = row % 2 ? PW * 0.38 : PW * 0.7;
+      g.strokeStyle = 'rgba(14,18,34,.4)'; g.beginPath(); g.moveTo(jx, y); g.lineTo(jx, y + 34); g.stroke();
+    }
+    g.strokeStyle = 'rgba(14,18,34,.35)'; g.lineWidth = 1;
+    for (let i = 0; i < 18; i++) { let x = rn() * PW, y = rn() * BH; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 3; k++) { x += (rn() - 0.5) * 8; y += 4 + rn() * 6; g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 10; i++) {
+      const x = 2 + rn() * PW * 0.45, y = rn() * BH, len = 14 + rn() * 40;
+      const mg = g.createLinearGradient(0, y, 0, y + len);
+      mg.addColorStop(0, 'rgba(111,154,82,.55)'); mg.addColorStop(1, 'rgba(111,154,82,0)');
+      g.fillStyle = mg; g.fillRect(x, y, 2 + rn() * 3, len);
+    }
+    g.fillStyle = 'rgba(8,10,22,.6)'; g.fillRect(0, 0, 1.5, BH); g.fillRect(PW - 1.5, 0, 1.5, BH);
+  }
+
+  // pillar cap with moss fringe (drawn flipped for hanging pillars)
+  const CW = PW + T.capOver * 2, M = T.moss;
+  A.cap = mk(CW, T.capH + M); { const g = A.cap.g;
+    const gr = g.createLinearGradient(0, 0, CW, 0);
+    gr.addColorStop(0, '#8d9ab6'); gr.addColorStop(0.12, '#6c7894'); gr.addColorStop(0.62, '#4d5770'); gr.addColorStop(1, '#30364d');
+    g.fillStyle = gr; rr(g, 0, M, CW, T.capH, 4); g.fill();
+    g.strokeStyle = 'rgba(8,10,22,.65)'; g.lineWidth = 1.5; rr(g, 0.75, M + 0.75, CW - 1.5, T.capH - 1.5, 4); g.stroke();
+    g.fillStyle = 'rgba(8,10,22,.35)'; g.fillRect(2, M + T.capH - 4, CW - 4, 2.5);
+    const r2 = mulberry(5);
+    g.fillStyle = '#5c8846'; g.fillRect(1, M - 1, CW - 2, 5);
+    for (let x = 1; x < CW - 2; x += 5) { g.fillStyle = r2() < 0.5 ? '#6f9a52' : '#7fad5d'; g.beginPath(); g.arc(x + 2.5, M + 1, 2.5 + r2() * 2.2, Math.PI, 0); g.fill(); }
+    for (let i = 0; i < 5; i++) { const x = 3 + r2() * (CW - 8), l = 3 + r2() * 7; g.fillStyle = '#5c8846'; rr(g, x, M + 2, 3, l, 1.5); g.fill(); }
+  }
+
+  A.honey = glowSprite(64, '244,226,122', 1);
+  A.teal = glowSprite(48, '126,240,216', 1);
+  A.amb = glowSprite(240, '255,226,140', 0.28);
+
+  // darkness with a hole: the firefly's own light reveals the stones
+  const DW = W * 2.6, DH = H * 2.6;
+  A.dark = mk(DW, DH, Math.min(R, 1) * 0.35); { const g = A.dark.g;
+    const gr = g.createRadialGradient(DW / 2, DH / 2, 0, DW / 2, DH / 2, 330);
+    gr.addColorStop(0, 'rgba(5,8,22,0)'); gr.addColorStop(0.2, 'rgba(5,8,22,0)');
+    gr.addColorStop(0.6, 'rgba(5,8,22,.34)'); gr.addColorStop(1, 'rgba(5,8,22,.5)');
+    g.fillStyle = gr; g.fillRect(0, 0, DW, DH);
+  }
+
+  // ambient background fireflies
+  if (!S.motes.length) for (let i = 0; i < 9; i++) S.motes.push({ x: Math.random() * W, y: Math.random(), ph: Math.random() * 6.28, sp: 0.3 + Math.random() * 0.6 });
+}
+function rr(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+/* ---------- layout ---------- */
+function resize(){
+  const iw = window.innerWidth, ih = window.innerHeight, a = iw / ih;
+  W = clamp(Math.round(640 * a), 300, 460);
+  H = clamp(Math.round(W / a), 640, 760);
+  scale = Math.min(iw / W, ih / H);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  R = scale * dpr;
+  cvs.width = Math.round(W * R); cvs.height = Math.round(H * R);
+  stage.style.width = W * scale + 'px'; stage.style.height = H * scale + 'px';
+  stage.style.setProperty('--u', scale + 'px');
+  const inset = $('safe').offsetHeight || 0, stageTop = (ih - H * scale) / 2;
+  safeTop = Math.max(0, inset - stageTop) / scale;
+  stage.style.setProperty('--st', safeTop * scale + 'px');
+  GROUND_Y = H - GROUND_H;
+  FX = Math.round(W * 0.3);
+  S.fly.x = FX;
+  S.readyY = Math.round(GROUND_Y * 0.46);
+  if (S.mode === 'ready') S.fly.y = S.readyY;
+  if (S.fly.y > GROUND_Y - T.r) S.fly.y = GROUND_Y - T.r;
+  buildAssets();
+  if (S.mode === 'play' || S.mode === 'countdown') pause();
+}
+
+/* ---------- game flow ---------- */
+const diff = () => Math.min(1, S.score / T.rampScore);
+const curSpeed = () => T.speed0 + (T.speedMax - T.speed0) * diff();
+const curGap = () => T.gap0 - (T.gap0 - T.gapMin) * diff();
+
+function spawnPillar(x){
+  const gap = curGap();
+  const lo = 58 + gap / 2, hi = GROUND_Y - 46 - gap / 2;
+  let y = lo + Math.random() * (hi - lo);
+  if (S.lastGapY != null && Math.abs(y - S.lastGapY) > T.maxShift) y = S.lastGapY + Math.sign(y - S.lastGapY) * T.maxShift;
+  y = clamp(y, lo, hi);
+  S.lastGapY = y;
+  const seed = Math.random(), r = mulberry((seed * 1e9) | 0), CW = T.pillarW + T.capOver * 2;
+  const shrooms = [];
+  const nUp = 1 + (r() * 2 | 0), nDn = 1 + (r() * 2 | 0);
+  for (let i = 0; i < nUp; i++) shrooms.push({ up: true, dx: -T.capOver + 6 + r() * (CW - 12), s: 0.8 + r() * 0.6 });
+  for (let i = 0; i < nDn; i++) shrooms.push({ up: false, dx: -T.capOver + 6 + r() * (CW - 12), s: 0.8 + r() * 0.6, len: 2 + r() * 4 });
+  S.pillars.push({ x, gapY: y, gap, passed: false, off: seed * 110, shrooms, ph: seed * 20 });
+}
+
+function resetRun(){
+  S.mode = 'ready'; S.score = 0; S.pillars = []; S.lastGapY = null; S.parts = [];
+  S.fly.y = S.readyY; S.fly.vy = 0; S.fly.ang = 0; S.overT = 0; S.panelShown = false;
+  S.newBest = false; S.light = 1;
+  $('over').classList.add('hidden');
+  $('hint').classList.remove('hidden');
+}
+function start(){
+  S.mode = 'play'; S.score = 0; S.pillars = []; S.lastGapY = null;
+  spawnPillar(W + 130);
+  $('title').classList.add('hidden'); $('hint').classList.add('hidden');
+  $('pauseBtn').classList.remove('hidden');
+  S.firstRun = false;
+}
+function abdomen(){ const f = S.fly, c = Math.cos(f.ang), s = Math.sin(f.ang); return [f.x - 7 * c - 2 * s, f.y - 7 * s + 2 * c]; }
+function flap(){
+  const f = S.fly;
+  f.vy = T.flapV; f.flare = 1;
+  sfx.flap();
+  const [ax, ay] = abdomen();
+  emit(ax, ay, reduceMotion ? 1 : 4, { vx: -curSpeed() * 0.8 - 30, vy: 40, spread: 45, lmin: 0.25, lmax: 0.5, smin: 7, smax: 12, c: 0 });
+}
+function addScore(p){
+  S.score++; S.pop = 1;
+  sfx.score();
+  emit(p.x + T.pillarW / 2, p.gapY, reduceMotion ? 4 : 12, { vx: -curSpeed() * 0.5, vy: 0, spread: 90, lmin: 0.35, lmax: 0.7, smin: 8, smax: 14, c: 1 });
+}
+function die(ground){
+  if (S.mode !== 'play') return;
+  S.mode = 'dying';
+  sfx.hit(); vibrate(35);
+  S.shake = reduceMotion ? 0 : 9; S.flash = 1;
+  const [ax, ay] = abdomen();
+  emit(ax, ay, reduceMotion ? 8 : 28, { vx: 0, vy: -40, spread: 170, lmin: 0.45, lmax: 1.1, smin: 8, smax: 16, c: 0, g: 260 });
+  $('pauseBtn').classList.add('hidden');
+  if (S.score > S.best) { S.best = S.score; S.newBest = true; store.set('glimmer-best', S.best); }
+  if (ground) land(); else { S.fly.vy = Math.min(S.fly.vy, -170); sfx.fall(); }
+}
+function land(){ S.mode = 'over'; S.overT = 0; S.panelShown = false; }
+function showPanel(){
+  S.panelShown = true;
+  $('oScore').textContent = S.score; $('oBest').textContent = S.best;
+  $('newBest').hidden = !(S.newBest && S.score > 0);
+  let got = null, next = RANKS[0];
+  for (let i = 0; i < RANKS.length; i++) { if (S.score >= RANKS[i].s) { got = RANKS[i]; next = RANKS[i + 1] || null; } }
+  const orb = document.querySelector('#rank .orb');
+  orb.style.setProperty('--orb', got ? got.c : '#596079');
+  orb.style.setProperty('--orbGlow', got ? got.c : 'transparent');
+  $('rankName').textContent = got ? got.n : 'No glow yet';
+  $('rankNext').textContent = next ? `${next.s - S.score} more for ${next.n}` : 'The brightest glow there is';
+  $('over').classList.remove('hidden');
+  if (S.newBest && S.score > 0) sfx.best();
+}
+function pause(){
+  if (S.mode !== 'play' && S.mode !== 'countdown') return;
+  S.mode = 'paused';
+  $('paused').classList.remove('hidden'); $('pauseBtn').classList.add('hidden');
+}
+function resume(){
+  S.mode = 'countdown'; S.countdown = 1.5; S.lastTick = 4;
+  S.fly.vy = Math.min(S.fly.vy, 0);
+  $('paused').classList.add('hidden'); $('pauseBtn').classList.remove('hidden');
+}
+function press(){
+  initAudio();
+  switch (S.mode) {
+    case 'ready': start(); flap(); break;
+    case 'play': flap(); break;
+    case 'over': if (S.panelShown && S.overT > 0.95) resetRun(); break;
+    case 'paused': resume(); break;
+  }
+}
+
+/* ---------- particles ---------- */
+function emit(x, y, n, o){
+  for (let i = 0; i < n; i++) {
+    if (S.parts.length > 170) S.parts.shift();
+    S.parts.push({ x, y, vx: o.vx + rand(-o.spread, o.spread), vy: o.vy + rand(-o.spread, o.spread), life: 0, max: rand(o.lmin, o.lmax), s: rand(o.smin, o.smax), c: o.c, g: o.g || 0 });
+  }
+}
+
+/* ---------- simulation ---------- */
+function circRect(cx, cy, r, x0, y0, x1, y1){ const dx = cx - clamp(cx, x0, x1), dy = cy - clamp(cy, y0, y1); return dx * dx + dy * dy < r * r; }
+function hitPillar(p, cx, cy, r){
+  const top = p.gapY - p.gap / 2, bot = p.gapY + p.gap / 2, x0 = p.x, x1 = p.x + T.pillarW, c0 = x0 - T.capOver, c1 = x1 + T.capOver;
+  return circRect(cx, cy, r, x0, -200, x1, top - T.capH) || circRect(cx, cy, r, c0, top - T.capH, c1, top)
+      || circRect(cx, cy, r, c0, bot, c1, bot + T.capH) || circRect(cx, cy, r, x0, bot + T.capH, x1, GROUND_Y + 50);
+}
+
+function step(dt){
+  S.t += dt;
+  const f = S.fly;
+  f.wing += dt * (S.mode === 'play' && f.vy < 0 ? 38 : S.mode === 'over' ? 0 : 20);
+  f.flare = Math.max(0, f.flare - dt * 2.6);
+  S.pop = Math.max(0, S.pop - dt * 5);
+  S.flash = Math.max(0, S.flash - dt * 4);
+  S.shake = Math.max(0, S.shake - dt * 30);
+
+  if (S.mode === 'paused') return;
+  if (S.mode === 'countdown') {
+    S.countdown -= dt;
+    const n = Math.ceil(S.countdown / 0.5);
+    if (n !== S.lastTick && n > 0) { S.lastTick = n; sfx.tick(); }
+    if (S.countdown <= 0) S.mode = 'play';
+    return;
+  }
+
+  const spd = curSpeed();
+  if (S.mode === 'ready' || S.mode === 'play') S.scroll += spd * dt;
+
+  if (S.mode === 'ready') {
+    f.y = S.readyY + Math.sin(S.t * 3.2) * 7; f.vy = 0;
+    f.ang += (0 - f.ang) * Math.min(1, dt * 8);
+  } else if (S.mode === 'play' || S.mode === 'dying') {
+    if (S.auto && S.mode === 'play') autopilot();
+    f.vy = Math.min(T.maxFall, f.vy + T.gravity * dt);
+    f.y += f.vy * dt;
+    const target = clamp(f.vy / 650, -0.45, S.mode === 'dying' ? 1.57 : 1.3);
+    f.ang += (target - f.ang) * Math.min(1, dt * (f.vy < 0 ? 14 : 6));
+    if (f.y < 6) { f.y = 6; if (f.vy < 0) f.vy = 0; }
+    if (f.y + T.r >= GROUND_Y) {
+      f.y = GROUND_Y - T.r;
+      if (S.mode === 'play') die(true); else land();
+    }
+  }
+
+  if (S.mode === 'play') {
+    for (const p of S.pillars) p.x -= spd * dt;
+    while (S.pillars.length && S.pillars[0].x < -T.pillarW - 30) S.pillars.shift();
+    const last = S.pillars[S.pillars.length - 1];
+    if (!last) spawnPillar(W + 130);
+    else if (last.x <= W + 10 - T.spacing) spawnPillar(last.x + T.spacing);
+    for (const p of S.pillars) {
+      if (!p.passed && p.x + T.pillarW / 2 < f.x) { p.passed = true; addScore(p); }
+      if (hitPillar(p, f.x, f.y, T.r)) { die(false); break; }
+    }
+    S.trailT += dt;
+    if (S.trailT > 0.05 && !reduceMotion) {
+      S.trailT = 0;
+      const [ax, ay] = abdomen();
+      emit(ax, ay, 1, { vx: -spd * 0.9, vy: 0, spread: 12, lmin: 0.3, lmax: 0.55, smin: 5, smax: 8, c: 0 });
+    }
+  }
+
+  if (S.mode === 'over') {
+    S.overT += dt;
+    S.light += (0.55 - S.light) * Math.min(1, dt * 2);
+    if (!S.panelShown && S.overT > 0.55) showPanel();
+  }
+
+  for (let i = S.parts.length - 1; i >= 0; i--) {
+    const p = S.parts[i];
+    p.life += dt;
+    if (p.life >= p.max) { S.parts.splice(i, 1); continue; }
+    p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 1 - dt * 1.5; if (!p.g) p.vy *= 1 - dt * 1.5;
+  }
+}
+
+function autopilot(){ // test helper only, enabled via window.__glim.auto(true)
+  const f = S.fly;
+  const p = S.pillars.find(p => p.x + T.pillarW + T.capOver > f.x - T.r - 2);
+  const target = p ? p.gapY + p.gap * 0.2 : GROUND_Y * 0.5;
+  if (f.y > target && f.vy >= 0) flap();
+}
+
+/* ---------- rendering ---------- */
+function tile(o, off, y){
+  const x = -(((off % W) + W) % W);
+  ctx.drawImage(o.c, x, y, W + 0.5, o.h);
+  ctx.drawImage(o.c, x + W, y, W + 0.5, o.h);
+}
+
+function drawPillar(p){
+  const top = p.gapY - p.gap / 2, bot = p.gapY + p.gap / 2, x = p.x, PW = T.pillarW, M = T.moss;
+  const bodyTop = top - T.capH;
+  if (bodyTop > 0) ctx.drawImage(A.body.c, 0, p.off * R, A.body.c.width, bodyTop * R, x, 0, PW, bodyTop);
+  const bStart = bot + T.capH, bLen = GROUND_Y - bStart;
+  if (bLen > 0) ctx.drawImage(A.body.c, 0, (p.off + 3) * R, A.body.c.width, Math.min(bLen * R, A.body.c.height - (p.off + 3) * R), x, bStart, PW, bLen);
+  const cx = x - T.capOver;
+  ctx.drawImage(A.cap.c, cx, bot - M, A.cap.w, A.cap.h);
+  ctx.save(); ctx.translate(cx, top + M); ctx.scale(1, -1); ctx.drawImage(A.cap.c, 0, 0, A.cap.w, A.cap.h); ctx.restore();
+}
+
+function drawFungi(p){
+  const top = p.gapY - p.gap / 2, bot = p.gapY + p.gap / 2;
+  const pulse = 0.75 + 0.25 * Math.sin(S.t * 2.2 + p.ph);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.6 * pulse;
+  for (const m of p.shrooms) {
+    const x = p.x + m.dx, y = m.up ? bot - T.moss + 2 - 5 * m.s : top + T.moss - 2 + (m.len || 6);
+    ctx.drawImage(A.teal.c, x - 16 * m.s, y - 16 * m.s, 32 * m.s, 32 * m.s);
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  for (const m of p.shrooms) {
+    const x = p.x + m.dx;
+    if (m.up) {
+      const y = bot - T.moss + 3, s = m.s;
+      ctx.fillStyle = '#d7f5ee'; ctx.fillRect(x - 0.9 * s, y - 5 * s, 1.8 * s, 5 * s);
+      ctx.fillStyle = '#7ef0d8'; ctx.beginPath(); ctx.ellipse(x, y - 5 * s, 3.8 * s, 2.8 * s, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(x - 1.5 * s, y - 6.6 * s, 1.4 * s, 1 * s);
+    } else {
+      const y = top + T.moss - 3, s = m.s, l = m.len;
+      ctx.strokeStyle = 'rgba(160,220,200,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + l); ctx.stroke();
+      ctx.fillStyle = '#9ff7e4'; ctx.beginPath(); ctx.ellipse(x, y + l + 2 * s, 2.2 * s, 3 * s, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+function drawFly(){
+  const f = S.fly, w = Math.sin(f.wing);
+  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+  // back wing
+  ctx.save(); ctx.translate(-1, -4); ctx.rotate(-0.7 + w * 0.65);
+  ctx.fillStyle = 'rgba(190,210,250,.35)'; ctx.beginPath(); ctx.ellipse(0, -8, 5.5, 10.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // glowing abdomen
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85 * S.light + f.flare * 0.4;
+  const gs = 30 + f.flare * 10; ctx.drawImage(A.honey.c, -7 - gs / 2, 2 - gs / 2, gs, gs);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const ag = ctx.createRadialGradient(-9, 1, 0, -7, 2, 10);
+  ag.addColorStop(0, '#fffbd8'); ag.addColorStop(0.5, '#f4e27a'); ag.addColorStop(1, '#c2a83a');
+  ctx.fillStyle = ag; ctx.beginPath(); ctx.ellipse(-7, 2, 9, 7, 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,95,30,.45)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-4, -4.5); ctx.quadraticCurveTo(-2, 2, -4, 8.5); ctx.stroke();
+  // legs
+  ctx.strokeStyle = '#241f38'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(1, 4); ctx.lineTo(-1, 8.5); ctx.moveTo(4, 4); ctx.lineTo(4, 9); ctx.stroke();
+  // thorax + head
+  ctx.fillStyle = '#3c3458'; ctx.beginPath(); ctx.ellipse(2.5, -0.5, 6.8, 6.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff9a7a'; ctx.beginPath(); ctx.ellipse(3.5, -5, 4.5, 2, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#2a2441'; ctx.beginPath(); ctx.arc(9.5, -0.5, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(11, -1.8, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#16121f'; ctx.beginPath(); ctx.arc(11.6, -1.8, 1, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#2a2441'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(10, -4.5); ctx.quadraticCurveTo(12, -12, 18, -12.5);
+  ctx.moveTo(8, -5); ctx.quadraticCurveTo(8.5, -13, 13, -15); ctx.stroke();
+  // front wing
+  ctx.save(); ctx.translate(1, -4); ctx.rotate(-0.35 + w * 0.8);
+  ctx.fillStyle = 'rgba(225,236,255,.55)'; ctx.beginPath(); ctx.ellipse(0, -9, 6, 11.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+
+function render(){
+  ctx.setTransform(R, 0, 0, R, 0, 0);
+  ctx.save();
+  if (S.shake > 0.1) ctx.translate(rand(-S.shake, S.shake), rand(-S.shake, S.shake));
+
+  ctx.drawImage(A.sky.c, 0, 0, W, H);
+  for (const s of S.stars) {
+    ctx.globalAlpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(S.t * s.sp + s.ph));
+    const x = ((s.x - S.scroll * 0.03) % W + W) % W;
+    ctx.fillStyle = '#e8ecff'; ctx.fillRect(x, s.y, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+  tile(A.far, S.scroll * 0.18, GROUND_Y - 150);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const m of S.motes) {
+    const x = ((m.x - S.scroll * 0.3 + Math.sin(S.t * m.sp + m.ph) * 14) % W + W) % W;
+    const y = 60 + m.y * (GROUND_Y - 160) + Math.cos(S.t * m.sp * 1.3 + m.ph) * 10;
+    ctx.globalAlpha = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(S.t * 1.7 + m.ph * 3));
+    ctx.drawImage(A.honey.c, x - 6, y - 6, 12, 12);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  tile(A.near, S.scroll * 0.45, GROUND_Y - 100);
+
+  for (const p of S.pillars) if (p.x < W + 20 && p.x > -T.pillarW - 20) drawPillar(p);
+
+  const GW = A.ground.w, off = ((S.scroll % GW) + GW) % GW;
+  for (let x = -off; x < W; x += GW) ctx.drawImage(A.ground.c, x, GROUND_Y - 8, GW + 0.4, A.ground.h);
+
+  // darkness, centered on the firefly
+  const f = S.fly;
+  const ds = (S.mode === 'ready' ? 1.35 : 1) * (1 + f.flare * 0.12) * (0.75 + 0.25 * S.light);
+  const dw = A.dark.w * ds, dh = A.dark.h * ds;
+  ctx.drawImage(A.dark.c, f.x - dw / 2, f.y - dh / 2, dw, dh);
+
+  // emissive layer
+  for (const p of S.pillars) if (p.x < W + 20 && p.x > -T.pillarW - 20) drawFungi(p);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.9 * S.light + f.flare * 0.35;
+  const as = 240 * (1 + f.flare * 0.15);
+  ctx.drawImage(A.amb.c, f.x - 7 - as / 2, f.y - as / 2, as, as);
+  for (const p of S.parts) {
+    const k = p.life / p.max, s = p.s * (1 - 0.5 * k);
+    ctx.globalAlpha = 1 - k;
+    ctx.drawImage(p.c ? A.teal.c : A.honey.c, p.x - s / 2, p.y - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  drawFly();
+  ctx.restore();
+
+  if (S.flash > 0) { ctx.fillStyle = `rgba(255,246,210,${S.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
+
+  // HUD
+  if (S.mode === 'play' || S.mode === 'dying' || S.mode === 'paused' || S.mode === 'countdown') {
+    const size = Math.round(54 * (1 + 0.22 * S.pop));
+    ctx.font = `${size}px "Lilita One","Nunito",ui-rounded,system-ui,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const y = safeTop + 74;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + S.pop * 0.4;
+    ctx.drawImage(A.honey.c, W / 2 - 50, y - 50, 100, 100);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.lineJoin = 'round'; ctx.lineWidth = 7; ctx.strokeStyle = '#1d1733';
+    ctx.strokeText(S.score, W / 2, y); ctx.fillStyle = '#fff6cf'; ctx.fillText(S.score, W / 2, y);
+  }
+  if (S.mode === 'countdown') {
+    const n = Math.max(1, Math.ceil(S.countdown / 0.5)), fr = (S.countdown % 0.5) / 0.5;
+    ctx.font = `${Math.round(70 + fr * 30)}px "Lilita One","Nunito",system-ui,sans-serif`;
+    ctx.globalAlpha = 0.4 + 0.6 * fr;
+    ctx.lineWidth = 8; ctx.strokeStyle = '#1d1733'; ctx.strokeText(n, W / 2, H * 0.42);
+    ctx.fillStyle = '#e6fffa'; ctx.fillText(n, W / 2, H * 0.42);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0;
+function frame(now){
+  let d = (now - last) / 1000; last = now;
+  if (d > 0.1) d = 0.1;
+  acc += d;
+  while (acc >= DT) { step(DT); acc -= DT; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- input ---------- */
+window.addEventListener('pointerdown', e => { if (e.button > 0) return; press(); }, { passive: true });
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') {
+    e.preventDefault(); if (!e.repeat) press();
+  } else if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (S.mode === 'paused') { initAudio(); resume(); } else pause();
+  } else if (e.code === 'KeyM') toggleMute();
+});
+['pauseBtn', 'muteBtn'].forEach(id => $(id).addEventListener('pointerdown', e => e.stopPropagation()));
+$('pauseBtn').addEventListener('click', () => pause());
+$('muteBtn').addEventListener('click', () => { initAudio(); toggleMute(); });
+function toggleMute(){
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : 0.5;
+  $('muteBtn').classList.toggle('muted', muted);
+  $('muteBtn').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  store.set('glimmer-muted', muted ? 1 : 0);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+window.addEventListener('blur', () => pause());
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+
+/* ---------- boot ---------- */
+resize();
+resetRun();
+$('title').classList.remove('hidden');
+store.get('glimmer-best').then(v => { const n = parseInt(v, 10); if (n > 0) S.best = n; });
+store.get('glimmer-muted').then(v => { if (v === '1') toggleMute(); });
+if (document.fonts && document.fonts.load) document.fonts.load('54px "Lilita One"').catch(() => {});
+requestAnimationFrame(frame);
+
+// debug/test hook
+window.__glim = {
+  S, T,
+  step(n){ for (let i = 0; i < n; i++) step(DT); render(); },
+  press, auto(v){ S.auto = !!v; }
+};
+})();
+</script>
+</body>
+</html>
