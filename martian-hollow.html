@@ -213,6 +213,7 @@ label.lbl{display:block;font-size:13px;color:var(--haze);margin:10px 0 3px}
 .pet{background:var(--felt-lo);border-radius:15px;padding:10px 12px;margin-bottom:6px}
 .pet .who{font-weight:700}
 .heart{color:var(--rose);font-size:13px}
+.mem{list-style:none;margin:6px 0 0;padding:0}.mem li{display:flex;gap:8px;font-size:13px;padding:2px 0;color:var(--haze)}.mem li.pos{color:var(--moss)}.mem li.neg{color:var(--rose)}.mem .when{flex:none;min-width:52px;opacity:.7}
 textarea.code{width:100%;height:84px;background:var(--felt-lo);color:var(--cream);border:1.5px solid rgba(188,170,203,.3);border-radius:12px;padding:8px 10px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
 .mcard h3{margin-top:14px}
 .mcard{max-height:calc(100vh - 40px);overflow:auto}
@@ -341,6 +342,8 @@ h3.sech{display:none}
       <button role="tab" data-tab="projects">Projects</button>
       <button role="tab" data-tab="ideas">Ideas</button>
       <button role="tab" data-tab="laws">Laws</button>
+      <button role="tab" data-tab="minds">Minds</button>
+      <button role="tab" data-tab="nature">Nature</button>
       <button role="tab" data-tab="nations">Nations</button>
       <button role="tab" data-tab="tasks">Tasks</button>
     </nav>
@@ -377,7 +380,7 @@ const WORK_TICKS=Math.round((WORK_END-WORK_START)*SOL);
 const SPORE_COST=4;
 const SAVE_KEY='martian-hollow-iso-save';   // kept stable so progress carries across updates
 const LEGACY_SAVE_KEYS=['martian-hollow-save'];
-const SAVE_VERSION=8;
+const SAVE_VERSION=11;
 
 const TIERS=[
   {name:'Drifter', color:'#A99BBE', min:-1e9, joy:-6},
@@ -416,6 +419,7 @@ const JOBS={
   cartographer:{name:'Echo Cartographer',    wage:13, desc:'Maps far places by listening to their echoes.'},
   weaver:      {name:'Sky Weaver',           wage:17, desc:'Knits thin air into a thicker, kinder sky.'},
   // callings nobody has thought of yet; a martian has to invent each one
+  forecaster:  {name:'Storm Watcher',  wage:10, emergent:true,minEra:1,desc:'Reads the wind and the dust from a Weather Mast, and warns of storms and falling stars a sol before they hit.'},
   forager:     {name:'Wild Forager',  wage:8,  emergent:true,minEra:0,desc:'Gathers wild lichen, ice, and spores from the land around their lodge.'},
   scout:       {name:'Ridge Scout',   wage:10, emergent:true,minEra:0,desc:'Walks out past the edge of the known map and reports back.'},
   tinker:      {name:'Tinkerer',      wage:13, emergent:true,minEra:1,desc:'Does nothing but think up new inventions.'},
@@ -428,11 +432,11 @@ const JOBS={
   starkeeper:  {name:'Star Keeper',   wage:20, emergent:true,minEra:5,desc:'Tends the Starward Beacon and listens for answers.'},
 };
 // which kinds of work lead a martian toward discovering each new calling
-const EMERGE={forager:['tender','diviner','sporer','listener'],scout:['cartographer','listener','shepherd','sculptor'],tinker:['singer','keeper','crystal','sculptor','shepherd'],
+const EMERGE={forecaster:['cartographer','shepherd','listener','diviner','scout'],forager:['tender','diviner','sporer','listener'],scout:['cartographer','listener','shepherd','sculptor'],tinker:['singer','keeper','crystal','sculptor','shepherd'],
   teacher:['archivist','magistrate','midwife'],medic:['midwife','sporer','keeper'],bard:['whisperer','archivist','tender','warden'],artist:['singer','keeper','tinker'],
   envoy:['magistrate','whisperer','warden'],tapper:['shepherd','crystal','diviner','tinker'],starkeeper:['crystal','weaver','cartographer','tinker','scout']};
 // the aptitude each calling builds
-const JOB_ATTR={sculptor:'craft',tender:'craft',diviner:'craft',listener:'grit',shepherd:'grit',singer:'craft',keeper:'craft',sporer:'heart',midwife:'heart',
+const JOB_ATTR={forecaster:'mind',sculptor:'craft',tender:'craft',diviner:'craft',listener:'grit',shepherd:'grit',singer:'craft',keeper:'craft',sporer:'heart',midwife:'heart',
   archivist:'mind',whisperer:'heart',magistrate:'heart',warden:'grit',crystal:'mind',cartographer:'mind',weaver:'mind',forager:'grit',scout:'grit',
   tinker:'mind',teacher:'mind',medic:'heart',bard:'heart',artist:'craft',envoy:'heart',tapper:'craft',starkeeper:'mind'};
 const ATTRS={craft:'Craft',mind:'Mind',heart:'Heart',grit:'Grit'};
@@ -458,6 +462,12 @@ const BUILD={
     desc:'A damp mound where spores ripen. Every bud needs four.'},
   chamber:{name:'Budding Chamber',icon:'🥚',dug:true,size:1,h:0.7,job:'midwife',slots:1,cost:{glint:140,regolith:25,glass:6},work:55,in:{hum:0.03},tech:'sporecraft',group:'Life and lore',
     desc:'Where martians bud new martians when the colony needs more hands. Needs a Bud Midwife.'},
+  university:{name:'University',icon:'🎓',size:2,h:1.6,job:'archivist',slots:4,cost:{glint:600,regolith:80,glass:40},work:180,out:{lore:0.08},in:{hum:0.04},tech:'academies',group:'Life and lore',
+    desc:'A great hall of learning. Pick a field for it to specialize in: everything in that field is studied 60% faster, and its archivists make lore.'},
+  mast:{name:'Weather Mast',icon:'🌬️',size:1,h:2.0,job:'forecaster',slots:2,cost:{glint:180,regolith:30,glass:10},work:60,needsJob:'forecaster',group:'The sky',special:'forecast',
+    desc:'Storm Watchers up here warn of dust storms and falling stars a sol early, so the colony can brace for them.'},
+  launchpad:{name:'Launch Pad',icon:'🚀',size:2,h:0.5,slots:0,cost:{glint:1500,regolith:150,glass:80},work:300,tech:'rocketry',unique:true,group:'The sky',
+    desc:'Where rockets are built and launched. Plan missions from the Projects tab: satellites, a base on Phobos, and a signal to Earth.'},
   archive:{name:'Dream Archive',icon:'💭',dug:true,size:1,h:0.75,job:'archivist',slots:2,cost:{glint:100,regolith:30},work:45,out:{lore:0.1},in:{hum:0.02},group:'Life and lore',
     desc:'Collects dreams and turns them into lore for research.'},
   hearth:{name:'Warmstone Hearth',icon:'🧡',dug:true,size:1,h:0.85,job:'keeper',slots:2,cost:{glint:150,regolith:30,glass:12},work:60,out:{warmstone:0.035},in:{glass:0.03,hum:0.05},tech:'hearthcraft',group:'Life and lore',
@@ -526,12 +536,18 @@ const TECHS={
   mentorship:    {name:'Mentorship',         cost:60,  req:['concord'], desc:'Everyone learns 50% faster, and masters teach their coworkers even more.'},
   patronage:     {name:'Patronage charters', cost:65,  req:['concord'], desc:'Wealthy martians can fund buildings. Funded buildings work 10% better and pay their patron dividends.'},
   buddinggardens:{name:'Budding gardens',    cost:80,  req:['sporecraft'], desc:'Budlings grow up in two sols instead of three and inherit more skill.'},
+  academies:     {name:'Academies',          cost:110, req:['mentorship'], desc:'Unlocks the University. Each one specializes in a field of knowledge, which then advances 60% faster.'},
+  rocketry:      {name:'Rocketry',           cost:220, req:['skyweaving'], desc:'Unlocks the Launch Pad, and with it a space program: satellites, a base on Phobos, and maybe a word with Earth.'},
   skyweaving:    {name:'Sky weaving',        cost:160, req:['harmonics','mentorship'], desc:'Unlocks the Sky Loom. Begin thickening the sky.'},
 };
 
 // sentiment per tier: [Drifter, Toiler, Crafter, Notable, Elder]
 // sent: joy by class [Drifter..Elder]. eth: [equality, progress] — martians whose values match like the option more.
 const LAWS={
+  air:{name:'Clean air',desc:'Limits on the smoke from kilns, hearths and vent taps. Cleaner air costs some of their output.',opts:[
+    {label:'No limits',sent:[0,0,0,1,2],eth:[0,0.5]},{label:'Filters required',sent:[0,0,0,0,-1],eth:[0,0]},{label:'Strict limits',sent:[1,1,0,-1,-3],eth:[0.3,-0.5]}]},
+  wild:{name:'Wild lands',desc:'How freely foragers may strip the wild lichen meadows.',opts:[
+    {label:'Free foraging',sent:[1,1,0,0,0],eth:[0,0.4]},{label:'Foraging limits',sent:[0,0,0,0,0],eth:[0,-0.2]},{label:'Nature reserves',sent:[-2,-1,0,1,1],eth:[0.2,-0.6]}]},
   tax:{name:'Income tax',desc:'Share of every wage the treasury keeps.',opts:[
     {label:'None',sent:[0,2,4,6,8],eth:[-1,0]},{label:'10%',sent:[0,0,0,0,0],eth:[0,0]},{label:'20%',sent:[1,-2,-4,-6,-8],eth:[0.5,0]},{label:'30%',sent:[2,-5,-8,-12,-15],eth:[1,0]}]},
   rent:{name:'Burrow rent',desc:"Paid every sol to the burrow's patron, or to the treasury.",opts:[
@@ -634,6 +650,13 @@ const TRAITS={
   quick:     {name:'Quick study',  desc:'Learns skills 50% faster.'},
   ambitious: {name:'Ambitious',    desc:'Thrives with high standing and sulks without it.'},
   fertile:   {name:'Budding-prone',desc:'Can bud more often and passes on more skill.'},
+  peaceable: {name:'Peaceable',    learned:true,desc:'Has seen what war costs. Miserable while the colony is at war.'},
+  watchful:  {name:'Watchful',     learned:true,desc:'Lived through a disaster. Calmer when the colony has border walls or Storm Watchers.'},
+  grateful:  {name:'Grateful',     learned:true,desc:'Never forgot who helped them. Learns faster and is a little happier.'},
+  tender:    {name:'Tender-hearted',learned:true,desc:'Grief made them kinder. Friendships matter more to them.'},
+  driven:    {name:'Driven',       learned:true,desc:'A dream came true, so they chase the next one. Learns 25% faster.'},
+  curious:   {name:'Curious',      learned:true,desc:'Something they studied lit a spark. Has ideas 30% more often.'},
+  bitter:    {name:'Bitter',       learned:true,desc:'Was wronged and holds a grudge. A little less happy, and quicker to quarrel.'},
 };
 
 const EXPEDITIONS=[
@@ -681,13 +704,13 @@ const MILESTONES=[
 const SYL=['zo','ki','ra','vel','mu','te','ori','pa','lun','xi','qua','ber','ny','sol','ae','dri','fen','ko','ul','im','sa','ree','tov','na','emi','yo','ash','pi','lo','vy'];
 const COLONY_NAMES=['Ochre Hollow','Dustmere','Little Tharsis','Phobos Rest','Butterscotch Basin','Hearthcrater','Rustwillow','Gale Nook','Deimos Dell','Amber Sink'];
 const LEDGER_LABELS={sales:'Market sales',taxes:'Taxes',rent:'Rent',exports:'Caravan sales',fines:'Fines',patronage:'Patronage sold',levy:'Wealth levy',
-  wonders:'Great works',endowments:'Endowments',pacts:'Trade pacts',raids:'Raids',plunder:'Plunder',tribute:'Tribute',diplomacy:'Gifts to other countries',defense:'Border walls',loans:'Loans',tourism:'Orbital visitors',gifts:'Gifts from communities',
+  wonders:'Great works',endowments:'Endowments',space:'Space program',research:'Experiments',pacts:'Trade pacts',raids:'Raids',plunder:'Plunder',tribute:'Tribute',diplomacy:'Gifts to other countries',defense:'Border walls',loans:'Loans',tourism:'Orbital visitors',gifts:'Gifts from communities',
   wages:'Wages',pensions:'Pensions',upkeep:'Building upkeep',royalties:'Inventor royalties',imports:'Caravan purchases',dividends:'Dividends to patrons',construction:'Construction',expeditions:'Expeditions',buyback:'Patronage bought back',stolen:'Theft'};
 
 const aan=w=>`${/^[aeiou]/i.test(w)?'an':'a'} ${w}`;
 const plural=w=>/fe$/.test(w)?w.slice(0,-2)+'ves':/(s|x|ch|sh)$/.test(w)?w+'es':/[^aeiou]y$/.test(w)?w.slice(0,-1)+'ies':w+'s';
 function genName(){let n=pick(SYL)+pick(SYL);if(Math.random()<0.28)n+=pick(SYL);return n[0].toUpperCase()+n.slice(1)}
-function randTraits(n){const out=[];const keys=Object.keys(TRAITS);while(out.length<n){const t=pick(keys);if(out.includes(t))continue;if((t==='upright'&&out.includes('covetous'))||(t==='covetous'&&out.includes('upright')))continue;out.push(t)}return out}
+function randTraits(n){const out=[];const keys=Object.keys(TRAITS).filter(k=>!TRAITS[k].learned);while(out.length<n){const t=pick(keys);if(out.includes(t))continue;if((t==='upright'&&out.includes('covetous'))||(t==='covetous'&&out.includes('upright')))continue;out.push(t)}return out}
 
 /* ================= state ================= */
 let S=null;
@@ -753,7 +776,8 @@ function siteBonus(type,tx,ty){
   const A=AFFINITY[type];if(!A)return 0;const s=sizeOf(type);
   if(A.rock){for(let y=ty-1;y<ty+s+1;y++)for(let x=tx-1;x<tx+s+1;x++)if(inMap(x,y)&&S.map.rock[T(x,y)])return A.v;return 0}
   if(featNear(tx,ty,s,A.feat))return A.v;
-  if(type==='well'&&waterNear(tx,ty,s))return A.v*0.8;
+  if(type==='well'&&(waterNear(tx,ty,s)||polarAt(tx,ty)>0.3))return A.v*0.8;
+  if(type==='quarry'&&featNear(tx,ty,s,FEAT.ore))return 0.6;
   if(A.biome!=null&&S.map.biome[T(tx,ty)]===A.biome)return A.v*0.5;
   return 0;
 }
@@ -843,7 +867,7 @@ function makeMap(w=64,h=64,keep=null){
   for(let n=0,g=0;n<Math.round(5*scale)&&g<400*scale;g++){const x=rint(1,w-2),y=rint(1,h-2);if(dC(x,y)<9)continue;const i=y*w+x;if(feat[i]||rock[i]||!dry(i))continue;feat[i]=6;n++}
   for(let i=0,g=0;i<Math.round(22*scale)&&g<200*scale;g++){const x=rnd(0.5,w-0.5),y=rnd(0.5,h-0.5);if(!dry(Math.floor(y)*w+Math.floor(x)))continue;craters.push({x,y,r:rnd(0.25,0.75)});i++}
   if(!keep)for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(Math.hypot(x+0.5-cx,y+0.5-cy)<9.5)seenA[y*w+x]=1;
-  return{w,h,rock,occ,craters,feat,biome,seen:seenA,traffic:Array(N).fill(0),road:Array(N).fill(0),wild:Array(N).fill(1),frost:Array(N).fill(0),water,mtn,hc};
+  return{w,h,rock,occ,craters,feat,biome,seen:seenA,traffic:Array(N).fill(0),road:Array(N).fill(0),wild:Array(N).fill(1),frost:Array(N).fill(0),smog:Array(N).fill(0),water,mtn,hc};
 }
 // height of the ground anywhere, smoothly between tile corners
 function hAt(x,y){const hc=S.map.hc;if(!hc)return 0;const W1=MAP_W+1;x=x<0?0:x>MAP_W?MAP_W:x;y=y<0?0:y>MAP_H?MAP_H:y;
@@ -859,7 +883,7 @@ function freshState(){
     stock:{lichen:50,water:55,regolith:80,glass:8,warmstone:2,keepsake:0,spores:6},hum:90,lore:10,sky:0,
     map:(()=>{const mp=makeMap(64,64);MAP_W=mp.w;MAP_H=mp.h;return mp})(),buildings:{},martians:{},nextId:1,
     wages:Object.fromEntries(Object.entries(JOBS).map(([k,j])=>[k,j.wage])),
-    laws:{tax:1,rent:1,levy:0,ration:0,minwage:0,budding:1,frontier:1,guilds:1,patents:0,government:0,machines:1,pensions:1,quarantine:0,curfew:0,sabbath:0,justice:1},lawCd:{},
+    laws:{air:0,wild:0,tax:1,rent:1,levy:0,ration:0,minwage:0,budding:1,frontier:1,guilds:1,patents:0,government:0,machines:1,pensions:1,quarantine:0,curfew:0,sabbath:0,justice:1},lawCd:{},
     research:{done:[],current:null,progress:0},order:68,
     caravan:Object.fromEntries(Object.keys(GOODS).map(g=>[g,1])),
     autoTrade:{lichen:true,water:true,regolith:true,glass:false,warmstone:false,keepsake:true,spores:true},
@@ -873,6 +897,9 @@ function freshState(){
     beaconGifts:0,lastUnlockSol:0,
     elections:{held:0,next:0,every:8,council:[],results:[],last:0},parties:[],auto:{},autoPave:false,memorials:[],legends:[],lastSeason:0,
     growth:{mode:2,reserve:250,started:0,upgraded:0,outposts:0,today:0},
+    schools:{},debates:[],
+    space:{sats:{},launches:0},lost:[],exp:null,stormIn:0,
+    fauna:[],disputes:[],bestiary:{},movement:null,yearKind:null,
     nations:{},natGrid:null,natRel:{},natBias:{},wars:[],glut:{},natPlaced:false,natVer:0,homeDef:0,
     trust:{party:{},comm:{}},dilemmas:[],petitions:[],endow:{},loans:[],invest:{target:null,keep:1000},
     yearLog:null,yearbooks:[],favorites:[],settings:{music:true,sfx:true,bubbles:true},decided:0,echoDug:0};
@@ -954,7 +981,7 @@ function addRes(k,v){
 }
 function led(cat,amt){S.ledger.today[cat]=(S.ledger.today[cat]||0)+amt}
 function localPrice(g){const G=GOODS[g];return G.base*clamp(Math.pow(G.target/(S.stock[g]+6),0.55),0.45,3.2)}
-function whisper(){return Math.min(0.15,(S.staff.whisperer||0)*0.09)+0.04*endowLvl('caravan')}
+function whisper(){return Math.min(0.15,(S.staff.whisperer||0)*0.09)+0.04*endowLvl('caravan')+(S.space&&S.space.earth&&S.space.earth.answer==='trade'?0.15:0)}
 function buyPrice(g){return GOODS[g].base*S.caravan[g]*(1.3-whisper())*(W('elevator')?0.6:1)}
 const glutOf=g=>(S.glut&&S.glut[g])??1;
 function sellPrice(g){return glutOf(g)*GOODS[g].base*S.caravan[g]*(0.75+whisper())*(S.ev.bonanza===g&&S.ev.bonanzaT>0?1.6:1)*(W('harbor')?1.2:1)*(W('elevator')?1.4:1)}
@@ -1042,7 +1069,7 @@ function prod(m,job){
 }
 function learn(m,job,mul){
   const fx=cfx(m.comm);
-  const k=0.0007*mul*(has(m,'quick')?1.5:1)*(tech('mentorship')?1.5:1)*(S.learnMul[job]||1)
+  const k=0.0007*mul*(has(m,'quick')?1.5:1)*(has(m,'driven')?1.25:1)*(has(m,'grateful')?1.1:1)*(tech('mentorship')?1.5:1)*(S.learnMul[job]||1)
     *(1+Math.min(0.6,cpw(m.comm,'school')*0.25))*(guildOf(job)?1.2:1)*(fx.learning?1.15:1)
     *(solNum()-(m.displaced??-99)<12?1.5:1)*((legendOf(m.lineage)||{}).job===job?1.1:1);
   const before=m.skills[job]||0;m.skills[job]=Math.min(100,before+(100-before)*k);
@@ -1227,6 +1254,9 @@ function holdBuilding(){return builtOf('hall')[0]||builtOf('post')[0]||builtOf('
 /* ================= martian behaviour ================= */
 function joyTarget(m){
   const t=m.tier;let j=52+TIERS[t].joy;
+  if(m.traits.length>2){if(has(m,'peaceable')&&warsOf(HOME).length)j-=10;if(has(m,'watchful')&&((S.homeDef||0)>0||forecastOn()))j+=3;if(has(m,'grateful'))j+=2;if(has(m,'bitter'))j-=3;if(has(m,'tender'))j+=Math.min(6,(m.fr||[]).length*1.5)}
+  if(m.school&&Sch(m.school)&&Sch(m.school).tenets.peace>0&&warsOf(HOME).length)j-=4;
+  if(m.life==='fulfilled')j+=3;else if(m.life==='adrift')j-=3;
   for(const k in LAWS)j+=LAWS[k].opts[S.laws[k]].sent[t];
   if(!m.home)j-=14;
   if(m.unpaid>20)j-=14;
@@ -1309,7 +1339,7 @@ function tickMartian(m,P){
   const hm=(has(m,'hardy')?0.8:1)*(adult?1:0.6)*(m.perks.includes('steady')?0.85:1)*(1-m.attr.grit/600);
   m.hunger-=0.45*hm;m.thirst-=0.5*hm;
   if(P.night){
-    const sc=W('dome')?1+(season().cold-1)*0.5:season().cold,cost=0.02*(S.ev.cold>0?1.5:1)*sc;
+    const sc0=season().cold*yearKind().cold,sc=W('dome')?1+(sc0-1)*0.5:sc0,cost=0.02*(S.ev.cold>0?1.5:1)*sc;
     if(m.state==='resting'&&S.hum>=cost){m.warmth+=1.4;S.hum-=cost}
     else m.warmth-=0.6*(S.ev.cold>0?1.7:1)*sc;
   }else m.warmth+=m.state==='resting'?0.6:0.25;
@@ -1365,6 +1395,8 @@ function tickMartian(m,P){
   if(adult&&!m.detained)maybeCrime(m,P);
 }
 function removeMartian(m,reason){
+  if(reason!=='exiled')for(const o of allM()){if(o===m)continue;const close=o.bond===m.id||o.parent===m.id||m.parent===o.id||(o.fr||[]).includes(m.id);
+    if(close){memo(o,`Lost ${m.name}`,-3,m.id);learnLesson(o,'tender',`losing ${m.name}`,0.25)}}
   if(reason!=='exiled')remember(m,reason);else{const pt=M(m.bond);if(pt){pt.bond=null;pt.grief=Math.min(40,(pt.grief||0)+20)}}
   if(m.work){const b=B(m.work);if(b)b.workers=b.workers.filter(x=>x!==m.id)}
   if(m.home){const h=B(m.home);if(h)h.residents=h.residents.filter(x=>x!==m.id)}
@@ -1413,7 +1445,10 @@ function tickBuildings(){
       if(lack){b.lack=lack;continue}
       b.lack=null;
       if(ins)for(const k in ins)addRes(k,-ins[k]*p*tm);
-      if(d.out)for(const k in d.out)addRes(k,d.out[k]*p*outMul*seasonMul(k)*bonusMul(k));
+      if(d.out){let q=1;
+        if(b.type==='quarry'){if(b.reserve==null)b.reserve=quarryReserve(b);if(b.reserve<=0){q=0;if(!b.workedOut){b.workedOut=true;chronicle(`The ${bName(b)} is worked out. There's no more regolith to dig there.`,'warn')}}else b.reserve-=d.out.regolith*p*outMul*0.6}
+        if(POLLUTERS[b.type])q*=airOutMul();if(b.type==='well'&&disputeOf(b.comm))q*=0.75;
+        for(const k in d.out)addRes(k,d.out[k]*p*outMul*seasonMul(k)*bonusMul(k)*q)}
       if(d.forage&&b.forage){const fw=forageWild(b);for(const k in b.forage)addRes(k,b.forage[k]*p*fw*seasonMul(k))}
       if(d.special==='insight')tinkerInsight(m,p);
       if(d.special==='beacon'){b.charge=(b.charge||0)+p*0.00035;if(b.charge>=1){b.charge=0;starGift(b)}}
@@ -1503,13 +1538,14 @@ function spawnBud(parent,c,p2){
   kid.comm=parent.comm;relAdd(parent.id,kid.id,45);
   if(cfx(parent.comm).buds)for(const o of allM())if(o.comm===parent.comm)o.joy=Math.min(100,o.joy+3);
   const gift=parent.wealth*0.15;parent.wealth-=gift;kid.wealth=gift;
+  if(S.bonus.budskill){const [bj]=bestSkill(parent);kid.skills[bj]=Math.min(100,kid.skills[bj]+S.bonus.budskill)}
   if(endowLvl('scholarship')){const [bj]=bestSkill(parent);kid.skills[bj]=Math.min(100,kid.skills[bj]+8*endowLvl('scholarship'));for(const a in ATTRS)kid.attr[a]=Math.min(100,kid.attr[a]+5*endowLvl('scholarship'))}
   parent.lastBud=solNum();parent.children++;parent.joy=Math.min(100,parent.joy+15);parent.budAt=null;
   assignHomes();
   kid.standing=standing(kid);kid.tier=tierFromStanding(kid.standing);
-  S.stats.buds++;yearNote('births',kid.name,parent.id,2);sfx('bud');say(parent,'A little bud! Hello!');
+  S.stats.buds++;yearNote('births',kid.name,parent.id,2);memo(parent,`Budded ${kid.name}`,3,kid.id);sfx('bud');say(parent,'A little bud! Hello!');
   chronicle(p2?`${parent.name} and ${p2.name} budded together! Welcome, ${kid.name} of the ${parent.lineage} line.`:`${parent.name} budded! Welcome, ${kid.name} of the ${parent.lineage} line.`,'joy');
-  toast(`${kid.name} budded from ${parent.name}.`,'joy');
+  // births are recorded in the News, but no longer pop up as notifications
 }
 function tickBudding(){
   for(const b of builtOf('chamber')){
@@ -1570,7 +1606,7 @@ function commitCrime(m,P){
     if(!rich.length)return;
     victim=rich.find(o=>m.rv&&m.rv.includes(o.id))||pick(rich);kind='pocket';relAdd(m.id,victim.id,-20);
     if(victim.comm!==m.comm)commRelAdd(m.comm,victim.comm,-6);amt=Math.min(40,victim.wealth*0.2);victim.wealth-=amt;m.wealth+=amt;victim.joy=Math.max(0,victim.joy-8);
-    txt=`pocketed ◈ ${Math.round(amt)} from ${victim.name}`;
+    txt=`pocketed ◈ ${Math.round(amt)} from ${victim.name}`;memo(victim,`Was robbed of ◈ ${Math.round(amt)}`,-2,m.id);learnLesson(victim,'bitter','being robbed',0.15);
   }
   S.stats.crimes++;S.stats.crimesToday++;S.order=Math.max(0,S.order-(kind==='vandal'?6:4));
   const catchP=0.15+Math.min(0.7,(S.staff.warden||0)*0.22)+(S.laws.curfew&&P.night?0.1:0);
@@ -1655,7 +1691,7 @@ function techAvailable(k){return !tech(k)&&TECHS[k].req.every(tech)}
 function tickResearch(){
   const k=S.research.current;if(!k)return;
   const tg=researchTarget(k);if(!tg){S.research.current=null;S.research.progress=0;return}
-  const x=Math.min(S.lore,0.6+0.15*S.era);S.lore-=x;S.research.progress+=x;
+  const x=Math.min(S.lore,0.6+0.15*S.era);S.lore-=x;S.research.progress+=x*studyMul();
   if(tg.idea){if(S.research.progress>=tg.cost){S.ideas=S.ideas.filter(i=>i!==tg.idea);S.research.current=null;S.research.progress=0;applyInvention(tg.idea)}return}
   if(S.research.progress>=TECHS[k].cost){
     S.research.done.push(k);S.research.current=null;S.research.progress=0;
@@ -1709,11 +1745,12 @@ function resolveExpedition(x){
 function rollEvent(){
   if(solNum()<3||Math.random()>0.38)return;
   const se=seasonIdx();
-  const list=[['storm',3*season().storm*(S.stormSoon?3:1)],['meteor',2],['festival',2],['bonanza',2],['bloom',se===0?2.5:1],['cold',se===3?3.5:se===2?2:0.6],['traveler',freeHousing()>0?2.5*(W('harbor')?2:1):0],['fever',se===3?2:1]];
+  const list=[['fire',labs().length?0.4:0],['quake',0.7],['slide',0.6],['erupt',0.5],['impact',0.45],['storm',3*season().storm*yearKind().storm*(S.stormSoon?3:1)],['meteor',2],['festival',2],['bonanza',2],['bloom',se===0?2.5:1],['cold',se===3?3.5:se===2?2:0.6],['traveler',freeHousing()>0?2.5*(W('harbor')?2:1):0],['fever',se===3?2:1]];
   let tot=list.reduce((a,x)=>a+x[1],0),r=Math.random()*tot,k='storm';
   for(const [n,w] of list){if((r-=w)<=0){k=n;break}}
+  if(['quake','slide','erupt','impact','fire'].includes(k)){disaster(k);return}
   switch(k){
-    case'storm':S.ev.storm=SOL;S.stormSoon=false;yearNote('storms');sfx('storm');chronicle('A dust storm rolls in. Turbines spin hard, but outdoor work slows.','warn');toast('A dust storm is rolling in.','warn');break;
+    case'storm':if(forecastOn()&&!S.stormIn){S.stormIn=1;S.stormGuard=true;chronicle('Storm Watchers spotted a dust storm on the horizon. It will hit in about a sol, so the colony is bracing for it.','law');toast('A storm is coming tomorrow','law');break}startStorm();break;
     case'meteor':{const g=rint(8,20);S.stock.glass+=g;let t=`A meteor shower left ${g} pieces of starglass around the colony.`;
       if(Math.random()<0.2){const s=allB().filter(b=>working(b)&&!BUILD[b.type].dug);if(s.length){const b=pick(s);b.damaged=true;b.repair=0;b.repairNeed=25;t+=` One struck the ${bName(b)}.`}}
       chronicle(t,'info');break}
@@ -1798,9 +1835,9 @@ function newSol(){
   refreshStanding();updateCouncil();
   socialSol();commSol();housesSol();guildSol();traditionSol();migrationSol();frontierSol();growthSol();
   seasonSol();trafficSol();electionSol();bondSol();machineSol();dreamSol();retireSol();
-  if(S.growth)S.growth.today=0;pruneSol();planSol();natSol();
+  if(S.growth)S.growth.today=0;pruneSol();planSol();natSol();planetSol();sciSol();mindSol();
   trustSol();wonderSol();loanSol();petitionSol();dilemmaSol();
-  if((sol-1)%YEAR_SOLS===0&&sol>1)yearEnd();else if(!S.yearLog)newYearLog();
+  if((sol-1)%YEAR_SOLS===0&&sol>1){yearEnd();rollYear()}else if(!S.yearLog)newYearLog();
   rollEvent();
   saveGame(true);
 }
@@ -1809,6 +1846,7 @@ function newSol(){
 function simTick(){
   S.tick++;
   if(S.tick%SOL===0)newSol();
+  faunaTick();
   const P=phase();
   tickEvents();
   tickBuildings();
@@ -1955,7 +1993,8 @@ function reveal(x,y,r){
 function discover(x,y){
   const i=T(x,y),f=S.map.feat[i],bm=S.map.biome[i];
   if(f===6){S.lore+=25;chronicle('Martians found an ancient echo stone. Its old songs gave the archivists 25 lore.','joy');toast('An echo stone was discovered.','joy')}
-  else if(f&&!S.discovered['f'+f]){S.discovered['f'+f]=solNum();chronicle(`Martians found a ${FEAT_NAMES[f].toLowerCase()} for the first time. ${FEAT_TIPS[f]}`,'info')}
+  if(!f&&S.natPlaced)findDeposit(x,y);
+  if(f&&f!==6&&!S.discovered['f'+f]){S.discovered['f'+f]=solNum();chronicle(`Martians found a ${FEAT_NAMES[f].toLowerCase()} for the first time. ${FEAT_TIPS[f]}`,'info')}
   if(bm&&!S.discovered['b'+bm]){S.discovered['b'+bm]=solNum();chronicle(`New land sighted: the ${BIOMES[bm].name.toLowerCase()}.`,'info');toast(`New land: the ${BIOMES[bm].name.toLowerCase()}`,'info')}
 }
 function revealTick(){for(const m of allM())if(!m.away&&!insideNowSim(m)){const x=Math.floor(m.x),y=Math.floor(m.y);reveal(x,y,m.job==='scout'?4:2);
@@ -2137,6 +2176,7 @@ const IDEA_WORDS={default:[['Clever','Gentle','Swift','Patient','Bright'],['Meth
   magistrate:[['Fair','Balanced','Open'],['Rite','Code','Hearing']],warden:[['Night','Watchful','Steady'],['Lanterns','Rounds','Whistle']],
   crystal:[['Resonant','Overtone','Pure'],['Tuning','Prism','Fork']],cartographer:[['Far','Echo','Layered'],['Charts','Sounding','Compass']],
   weaver:[['Thick','Blue','Warm'],['Warp','Weft','Shuttle']],sculptor:[['Rammed','Curved','Packed'],['Arches','Forms','Mortar']],
+  forecaster:[['Far-Seeing','Weather','Windward'],['Vane','Almanac','Sightglass']],
   forager:[['Wild','Wandering','Keen'],['Baskets','Paths','Nose']],scout:[['Long','Ridge','Starlit'],['Stride','Markers','Maps']],
   tinker:[['Whirring','Odd','Cunning'],['Gears','Contraption','Spring']],teacher:[['Gentle','Stepwise','Playful'],['Lessons','Primer','Games']],
   medic:[['Soothing','Clean','Mending'],['Poultice','Salve','Rest']],bard:[['Old','Ringing','Low'],['Ballads','Chants','Rounds']],
@@ -2187,7 +2227,7 @@ function proposeIdea(m,job,viaTinker){
 }
 function gainInsight(m,job,p){
   const fx=cfx(m.comm);
-  m.insight+=0.0005*p*(W('archivehall')?1.2:1)*(1+m.attr.mind/100)*(m.perks.includes('inventive')?2:1)*(1+0.15*S.era)*(S.laws.patents===1?1.25:1)*(has(m,'dreamy')?1.3:1)*(fx.insight?1.25:1);
+  m.insight+=0.0005*p*(has(m,'curious')?1.3:1)*(W('archivehall')?1.2:1)*(1+m.attr.mind/100)*(m.perks.includes('inventive')?2:1)*(1+0.15*S.era)*(S.laws.patents===1?1.25:1)*(has(m,'dreamy')?1.3:1)*(fx.insight?1.25:1);
   if(m.insight>=1){m.insight=0;proposeIdea(m,job)}
 }
 function tinkerInsight(m,p){
@@ -2201,7 +2241,7 @@ function tinkerInsight(m,p){
 }
 function applyInvention(idea){
   const e=idea.eff;
-  S.inventions.push({id:idea.id,name:idea.name,by:idea.by,byName:idea.byName,job:idea.job,eff:e,sol:solNum()});
+  S.inventions.push({id:idea.id,name:idea.name,by:idea.by,byName:idea.byName,job:idea.job,eff:e,sol:solNum(),comm:M(idea.by)?M(idea.by).comm:null});
   switch(e.type){
     case'boost':S.boost[e.job]=(S.boost[e.job]||0)+e.v;break;
     case'thrift':S.thrift[e.job]=(S.thrift[e.job]??1)*(1-e.v);break;
@@ -2265,7 +2305,7 @@ function starGift(b){
 // Every save records its version. Older saves are upgraded step by step, then any
 // field a newer version added is filled in with its default. Add a new step here
 // whenever the save format changes, and old progress keeps loading.
-const NO_FILL=new Set(['nations','natRel','natBias','wars','glut','dilemmas','petitions','endow','loans','yearbooks','favorites','yearLog','buildings','martians','comms','rel','traditions','map','lawCd','boost','thrift','learnMul','discovered','strikes','milestones','memorial','log','expeditions','cases','ideas','inventions','unlockedJobs','houses','guilds','council','cpow']);
+const NO_FILL=new Set(['schools','debates','lost','exp','fauna','disputes','bestiary','movement','nations','natRel','natBias','wars','glut','dilemmas','petitions','endow','loans','yearbooks','favorites','yearLog','buildings','martians','comms','rel','traditions','map','lawCd','boost','thrift','learnMul','discovered','strikes','milestones','memorial','log','expeditions','cases','ideas','inventions','unlockedJobs','houses','guilds','council','cpow']);
 const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
 function fillDefaults(t,d){for(const k in d){if(!(k in t)||t[k]===undefined)t[k]=d[k];else if(isObj(d[k])&&isObj(t[k])&&!NO_FILL.has(k))fillDefaults(t[k],d[k])}}
 function migrate1to2(s){
@@ -2333,6 +2373,9 @@ function migrateSave(raw){
   if(s.v===5)migrate5to6(s);
   if(s.v===6)migrate6to7(s);
   if(s.v===7){s.v=8} // other countries are placed once the save has loaded
+  if(s.v===8){s.v=9} // the living planet fills itself in on load
+  if(s.v===9){s.v=10} // science and space start empty
+  if(s.v===10){s.v=11} // minds fill in as martians live
   // future versions: if(s.v===6)migrate6to7(s);
   MAP_W=s.map.w||32;MAP_H=s.map.h||32;
   fillDefaults(s,freshState());
@@ -2340,7 +2383,7 @@ function migrateSave(raw){
   return s;
 }
 function sanitizeLoaded(){
-  {const mp=S.map,N=(mp.w||32)*(mp.h||32);for(const k of ['water','mtn'])if(!Array.isArray(mp[k])||mp[k].length!==N)mp[k]=Array(N).fill(0);
+  {const mp=S.map,N=(mp.w||32)*(mp.h||32);for(const k of ['water','mtn','smog'])if(!Array.isArray(mp[k])||mp[k].length!==N)mp[k]=Array(N).fill(0);
    if(!Array.isArray(mp.hc)||mp.hc.length!==((mp.w||32)+1)*((mp.h||32)+1))mp.hc=Array(((mp.w||32)+1)*((mp.h||32)+1)).fill(0.1)}
   // S is now the loaded save: repair anything an update could have left inconsistent
   for(const b of allB()){if(!BUILD[b.type]){delete S.buildings[b.id];LV.b++;continue}
@@ -2394,23 +2437,27 @@ function seasonSol(){
     // frost spreads across the ice flats in winter and melts in spring
     if(si===3){for(let i=0;i<MAP_W*MAP_H;i++)if(S.map.biome[i]===1&&!S.map.feat[i]&&!S.map.rock[i]&&S.map.occ[i]==null&&Math.random()<0.18){S.map.feat[i]=FEAT.ice;S.map.frost[i]=1}refreshBonuses()}
     if(si===0){let n=0;for(let i=0;i<MAP_W*MAP_H;i++)if(S.map.frost[i]){S.map.frost[i]=0;if(S.map.feat[i]===FEAT.ice)S.map.feat[i]=0;n++}if(n)refreshBonuses()}
-    UI.mapVer++;
+    UI.mapVer++;refreshBonuses();
   }
-  // wild meadows regrow by season, and spread in spring
-  const regrow=[0.25,0.15,0.1,0.02][si];
+  // wild meadows regrow by season, and spread in spring; ones foraged bare die off
+  const regrow=[0.25,0.15,0.1,0.02][si]*(wildLaw()===2?1.5:1);let died=0;
   for(let i=0;i<MAP_W*MAP_H;i++){
     if(S.map.feat[i]!==FEAT.lichen)continue;
+    if((S.map.wild[i]??1)<0.03&&Math.random()<0.35){S.map.feat[i]=0;died++;continue}
     S.map.wild[i]=Math.min(1,(S.map.wild[i]??1)+regrow);
-    if(si===0&&Math.random()<0.08){const x=i%MAP_W,y=(i/MAP_W)|0,[dx,dy]=pick(DIRS.slice(0,4)),nx=x+dx,ny=y+dy;
+    if(si===0&&Math.random()<(wildLaw()===2?0.16:0.08)){const x=i%MAP_W,y=(i/MAP_W)|0,[dx,dy]=pick(DIRS.slice(0,4)),nx=x+dx,ny=y+dy;
       if(inMap(nx,ny)){const j=T(nx,ny);if(!S.map.feat[j]&&!S.map.rock[j]&&S.map.occ[j]==null&&!S.map.road[j]&&(S.map.biome[j]===2||S.map.biome[j]===0)){S.map.feat[j]=FEAT.lichen;S.map.wild[j]=0.3;UI.mapVer++}}}
   }
+  if(died){meadowNote(died);UI.mapVer++;refreshBonuses()}
 }
 function refreshBonuses(){for(const b of allB()){b.bonus=siteBonus(b.type,b.tx,b.ty);if(BUILD[b.type].forage)b.forage=forageOf(b.tx,b.ty)}}
-function seasonMul(k){const se=season();return k==='lichen'?se.lichen:k==='spores'?se.spores:k==='water'?se.water:1}
+function seasonMul(k){const se=season(),yk=yearKind();return k==='lichen'?se.lichen*yk.lichen:k==='spores'?se.spores:k==='water'?se.water*yk.water:1}
+function meadowNote(n){if(n)chronicle(`${n} wild lichen meadow${n>1?'s were':' was'} foraged bare and died off. ${wildLaw()?'':'Foraging limits or nature reserves would protect the rest.'}`,'warn')}
 function forageWild(b){
   // foragers thin out the meadows they gather from; the lodge's yield follows how full they are
   let sum=0,n=0;
-  for(let y=b.ty-3;y<=b.ty+3;y++)for(let x=b.tx-3;x<=b.tx+3;x++){if(!inMap(x,y))continue;const i=T(x,y);if(S.map.feat[i]===FEAT.lichen){sum+=S.map.wild[i]??1;n++;S.map.wild[i]=Math.max(0,(S.map.wild[i]??1)-0.0015)}}
+  for(let y=b.ty-3;y<=b.ty+3;y++)for(let x=b.tx-3;x<=b.tx+3;x++){if(!inMap(x,y))continue;const i=T(x,y);if(S.map.feat[i]===FEAT.lichen){const w=S.map.wild[i]??1;n++;
+    if(reserved(i)||(wildLaw()>=1&&w<0.4))continue;sum+=w;S.map.wild[i]=Math.max(0,w-0.0015)}}
   return n?sum/n:1;
 }
 
@@ -2516,7 +2563,7 @@ function bondSol(){
     A.bond=Bm.id;Bm.bond=A.id;S.stats.bonds=(S.stats.bonds||0)+1;
     A.joy=Math.min(100,A.joy+15);Bm.joy=Math.min(100,Bm.joy+15);
     chronicle(`${A.name} and ${Bm.name} bonded for life under the twin moons.`,'joy');toast(`${A.name} and ${Bm.name} have bonded.`,'joy');
-    yearNote('bonds',`${A.name} and ${Bm.name}`,A.id,2);yearNote('bonds2','',Bm.id,2);say(A,'♥');say(Bm,'♥');sfx('chime');
+    yearNote('bonds',`${A.name} and ${Bm.name}`,A.id,2);memo(A,`Bonded with ${Bm.name}`,3,Bm.id);memo(Bm,`Bonded with ${A.name}`,3,A.id);yearNote('bonds2','',Bm.id,2);say(A,'♥');say(Bm,'♥');sfx('chime');
     if((A.tier>=2||Bm.tier>=2)&&Math.random()<0.5&&C(A.comm))queueDilemma('bondfeast',{a:A.id,b:Bm.id,an:A.name,bn:Bm.name,cid:A.comm,cn:C(A.comm).name});
     const ha=B(A.home),hb=B(Bm.home);
     if(ha&&ha!==hb&&ha.residents.length<housingOf(ha))moveInto(Bm,ha);else if(hb&&ha!==hb&&hb.residents.length<housingOf(hb))moveInto(A,hb);
@@ -2594,7 +2641,7 @@ function dreamSol(){
       const txt=DREAMS[m.dream.type].text(m.dream.arg);
       m.dreamsDone=(m.dreamsDone||0)+1;S.stats.dreams=(S.stats.dreams||0)+1;m.joy=Math.min(100,m.joy+20);m.rep=Math.min(100,m.rep+5);m.bitter=false;
       chronicle(`${m.name}'s dream came true: to ${txt}.`,'joy');toast(`A dream came true for ${m.name}.`,'joy');m.dream=null;
-      yearNote('dreams',`${m.name}, who got to ${txt}`,m.id,3);say(m,'My dream came true!');
+      yearNote('dreams',`${m.name}, who got to ${txt}`,m.id,3);memo(m,`Got to ${txt}`,4);learnLesson(m,'driven','seeing a dream come true',0.5);say(m,'My dream came true!');
     }else if(!m.bitter&&m.age>m.lifespan*0.72){m.bitter=true;chronicle(`${m.name} is growing old without ever getting to ${DREAMS[m.dream.type].text(m.dream.arg)}.`,'warn')}
   }
 }
@@ -2614,7 +2661,7 @@ function apprenticeTick(){
 }
 function comeOfAge(m){
   const mt=M(m.mentor),cm=C(m.comm);
-  m.wantJob=mt&&mt.job!=='none'?mt.job:bestSkill(m)[0];
+  m.wantJob=mt&&mt.job!=='none'?mt.job:bestSkill(m)[0];if(mt){memo(m,`Grew up learning from ${mt.name}`,2,mt.id);learnLesson(m,'grateful',`growing up with ${mt.name} as their mentor`,0.15)}
   chronicle(`${m.name} came of age at the Hearthstone${cm?` of ${cm.name}`:''}, hoping to become ${aan(JOBS[m.wantJob].name)}${mt?` like their mentor ${mt.name}`:''}.`,'joy');
   if(!m.dream)assignDream(m);
 }
@@ -2751,7 +2798,7 @@ function communityNeeds(cm){
   // only build a workplace when someone can actually work there
   const idleHere=mem.filter(m=>isAdult(m)&&m.job==='none'&&!m.retired&&!m.away).length;
   const hands=idleHere+Math.max(0,-laborShortage());
-  const openAt=type=>allB().some(b=>b.type===type&&b.built&&!b.buried&&!b.damaged&&b.workers.length<slotsOf(b));
+  const openAt=type=>allB().some(b=>b.type===type&&b.built&&!b.buried&&!b.damaged&&!(b.reserve!=null&&b.reserve<=0)&&b.workers.length<slotsOf(b));
   const room=type=>mine(type).length+allB().filter(b=>b.comm===cm.id&&b.type===type&&!b.built).length<1+Math.floor(mem.length/4);
   const lowFood=S.stock.lichen<60,lowWater=S.stock.water<60,lowHum=S.hum<humCap()*0.3,lowReg=S.stock.regolith<50,lowGlass=tech('kilncraft')&&S.stock.glass<20;
   const want=(flag,type,why)=>{if(!flag)return;const up=mine(type).find(busy);if(up)out.push({kind:'upgrade',b:up,why});
@@ -2816,9 +2863,11 @@ function tryProject(cm,w){
 // which buildings a community could part with, and how gladly (0 = never)
 function spareScore(cm,b,needBeds){
   const d=BUILD[b.type];
+  if(b.type==='quarry'&&b.comm===cm.id&&!b.keep&&b.built&&b.reserve!=null&&b.reserve<=0)return 7;
   if(b.comm!==cm.id||b.keep||d.wonder||d.unique||b.type==='hearthstone'||b.type==='outpost'||b.type==='chamber'||!b.built||b.upg||b.patron)return 0;
   if(solNum()-(b.made||0)<12)return 0;
   if(b.buried||b.damaged)return(b.broken||0)>=6?6:0;
+  if(b.type==='quarry'&&b.reserve!=null&&b.reserve<=0)return 7;
   if(b.type==='burrow'){const beds=commBeds(cm.id);return!needBeds&&b.residents.length===0&&beds.free>=6&&b.level===1?2:0}
   if(slotsOf(b)>0&&d.out&&Object.keys(d.out).some(k=>GOODS[k]&&glutOf(k)<0.55&&S.stock[k]>GOODS[k].target*1.3)){const same=allB().filter(o=>o.comm===cm.id&&o.type===b.type&&o.built);
     if(same.length>=2&&b.level<=Math.min(...same.map(o=>o.level)))return 2.5}
@@ -2835,9 +2884,9 @@ function pruneSol(){
   let n=0;
   for(const cm of shuffle([...allC()])){if(!cm.auto||n>=2)continue;
     const idleHands=allM().some(m=>m.comm===cm.id&&isAdult(m)&&m.job==='none'&&!m.retired&&!m.away);
-    const c=allB().map(b=>[b,spareScore(cm,b,false)]).filter(x=>x[1]>0&&!(idleHands&&slotsOf(x[0])>0&&!x[0].buried&&!x[0].damaged)).sort((a,b)=>b[1]-a[1])[0];
-    if(!c||Math.random()>0.5)continue;
-    const b=c[0],nm=bName(b),why=b.buried||b.damaged?'too broken to be worth fixing':b.type==='burrow'?'standing empty':(b.idle||0)>=6?'that nobody has worked in for a long time':'since the stores are overflowing with what it makes';
+    const c=allB().map(b=>[b,spareScore(cm,b,false)]).filter(x=>x[1]>=7||(x[1]>0&&!(idleHands&&slotsOf(x[0])>0&&!x[0].buried&&!x[0].damaged))).sort((a,b)=>b[1]-a[1])[0];
+    if(!c||(c[1]<7&&Math.random()>0.5))continue;
+    const b=c[0],nm=bName(b),why=b.type==='quarry'&&b.reserve<=0?'now that it is worked out':b.buried||b.damaged?'too broken to be worth fixing':b.type==='burrow'?'standing empty':(b.idle||0)>=6?'that nobody has worked in for a long time':'since the stores are overflowing with what it makes';
     const [g,reg]=salvage(b);n++;
     chronicle(`The folk of ${cm.name} sold off their ${nm}, ${why}, for ◈ ${fmt(g)}${reg?` and ${reg} regolith`:''}.`,'info');
   }
@@ -2876,6 +2925,385 @@ function rebalanceBuilders(){
     assignJob(m,'sculptor',null);chronicle(`${m.name} put down their work at the ${bName(from)} to help build in ${C(cid).name}.`,'info');return;
   }
 }
+/* ================= minds of their own =================
+   Martians remember what happens to them, learn lessons from it, look back on their lives,
+   pick their own goals and practice toward them, and gather into schools of thought that
+   spread, split, argue, and shape whole countries. */
+function memo(m,txt,w,who){if(!m)return;if(!m.mem)m.mem=[];if(m.mem[0]&&m.mem[0].t===txt){m.mem[0].n=(m.mem[0].n||1)+1;m.mem[0].s=solNum();return}m.mem.unshift({s:solNum(),t:txt,w,who:who??null});if(m.mem.length>10)m.mem.length=10}
+function learnLesson(m,t,why,p=1){if(!m||!isAdult(m)||Math.random()>p||m.traits.includes(t))return false;if(!m.learned)m.learned=[];
+  m.traits.push(t);m.learned.push({t,why,s:solNum()});if(t==='tender')m.attr.heart=Math.min(100,m.attr.heart+6);
+  if(Math.random()<0.35)chronicle(`${m.name} became ${TRAITS[t].name.toLowerCase()} after ${why}.`,'info');return true}
+const lifeWord={fulfilled:'Fulfilled',content:'Content',restless:'Restless',adrift:'Adrift'};
+const AX=['eq','prog','peace','spirit'];
+const AXW={eq:['Shared','Self-Made'],prog:['Starward','Old Song'],peace:['Gentle','Iron'],spirit:['Dreaming','Practical']};
+const AXT={eq:['everything should be shared','each martian should keep what they earn'],prog:['new inventions light the way forward','the old songs already hold the truth'],
+  peace:['violence is never the answer','strength keeps the peace'],spirit:['dreams matter more than lichen','only what you can build is real']};
+const AXQ={eq:'whether Glint should be shared',prog:'whether to trust new inventions or the old songs',peace:'whether the colony should ever go to war',spirit:'whether dreams matter more than lichen'};
+const SCHOOL_NOUNS=['Way','Circle','Path','Fellowship','Teaching','Lantern'];
+const SCHOOL_COLORS=['#F2B866','#93C6E6','#AFCB8B','#E8A2A0','#C9B2DE','#8ED1C6','#EE8A74'];
+const belief=(m,k)=>m.ethos[k]??0;
+const tenetDist=(m,t)=>Math.sqrt(AX.reduce((a,k)=>a+(t[k]?(belief(m,k)-t[k]*0.7)**2:0),0));
+const Sch=id=>S.schools&&S.schools[id];
+function schoolText(s){const parts=AX.filter(k=>s.tenets[k]).map(k=>AXT[k][s.tenets[k]>0?0:1]);return`Teaches that ${parts.length>1?parts.slice(0,-1).join(', ')+' and '+parts[parts.length-1]:parts[0]}.`}
+function foundSchool(m,parent,native){
+  const ax=AX.map(k=>[k,belief(m,k)]).filter(([,v])=>Math.abs(v)>0.2).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2);if(!ax.length)return null;
+  const tenets={};for(const [k,v] of ax)tenets[k]=v>0?1:-1;
+  const same=Object.values(S.schools).find(s=>AX.every(k=>(s.tenets[k]||0)===(tenets[k]||0)));if(same){if(m.id!=null)m.school=same.id;return m.id==null?same:null}
+  const id=S.nextId++,adj=AXW[ax[0][0]][tenets[ax[0][0]]>0?0:1],fname=native?native:m.name;
+  const s={id,name:`The ${parent?'New ':''}${adj} ${pick(SCHOOL_NOUNS)} of ${fname}`,founder:m.id??null,fname,tenets,sol:solNum(),color:SCHOOL_COLORS[Object.keys(S.schools).length%SCHOOL_COLORS.length],parent:parent||null,native:!!native};
+  S.schools[id]=s;if(m.id!=null)m.school=id;return s}
+function lifeReview(m){
+  const fr=(m.fr||[]).filter(M).length,dreamDone=m.dreamsDone||0;
+  let sat=(m.joyAvg??m.joy)*0.55+Math.min(4,fr)*3+(M(m.bond)?8:0)+(m.wish?8:0)+m.tier*3+dreamDone*3-(m.grief||0)*0.4+(m.school?4:0);
+  const old=m.life;m.life=sat>68?'fulfilled':sat>50?'content':sat>36?'restless':'adrift';
+  if(m.aim&&(solNum()-m.aim.since>30||((m.life==='content'||m.life==='fulfilled')&&solNum()-m.aim.since>12&&Math.random()<0.5))){memo(m,`Gave up on becoming ${aan(JOBS[m.aim.job].name)}`,-1);m.aim=null}
+  if((m.life==='restless'||m.life==='adrift')&&!m.aim&&!m.retired){
+    const fav=Object.entries(JOB_ATTR).filter(([j,a])=>WORK_JOBS.includes(j)&&jobUnlocked(j)&&j!==m.job&&a===Object.entries(m.attr).sort((x,y)=>y[1]-x[1])[0][0]).map(([j])=>j);
+    const j=m.wantJob&&m.wantJob!==m.job?m.wantJob:fav.length?pick(fav):null;
+    if(j){m.aim={job:j,since:solNum()};if(Math.random()<0.4)say(m,`I want to become ${aan(JOBS[j].name)}.`);memo(m,`Decided to become ${aan(JOBS[j].name)}`,1)}}
+  if(old&&old!==m.life&&m.life==='fulfilled')memo(m,'Realized life is good',2);
+}
+const cap1=s=>s[0].toUpperCase()+s.slice(1);
+function beliefLine(m){const ax=AX.map(k=>[k,belief(m,k)]).filter(([,v])=>Math.abs(v)>0.25).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2);
+  if(!ax.length)return"Doesn't feel strongly about much yet.";return`Believes ${ax.map(([k,v])=>`that ${AXT[k][v>0?0:1]}`).join(', and ')}.`}
+function lifeLine(m){const good=[],bad=[];if(M(m.bond))good.push('a bonded partner');if((m.fr||[]).filter(M).length>=2)good.push('good friends');if(m.wish)good.push('the calling they wanted');
+  if(m.dreamsDone)good.push(m.dreamsDone>1?'dreams come true':'a dream come true');if(m.school)good.push('something to believe in');
+  if((m.grief||0)>5)bad.push('still grieving');if((m.joyAvg??m.joy)<45)bad.push('hard times lately');if(!(m.fr||[]).length)bad.push('no close friends');if(m.job==='none')bad.push('no calling');
+  const g=good.length?`Grateful for ${good.slice(0,3).join(', ')}.`:'',b=bad.length?` ${cap1(bad.slice(0,2).join(' and '))}.`:'';return(g+b).trim()||'Taking life one sol at a time.'}
+function mindSol(){
+  if(!S.schools)S.schools={};if(!S.debates)S.debates=[];
+  const ms=allM(),adults=ms.filter(m=>isAdult(m)&&!m.away);
+  for(const m of ms){
+    m.joyAvg=(m.joyAvg??m.joy)*0.8+m.joy*0.2;
+    if(m.ethos.peace==null){m.ethos.peace=rnd(-0.4,0.4);m.ethos.spirit=rnd(-0.4,0.4)}
+    if(!isAdult(m)||m.away)continue;
+    // going hungry teaches thrift
+    if(m.hunger<15){m.hungry=(m.hungry||0)+1;if(m.hungry===2){memo(m,`Went hungry in the ${season().name.toLowerCase()} of Year ${yearOf()}`,-2);learnLesson(m,'thrifty',`going hungry in Year ${yearOf()}`,0.7)}}else m.hungry=0;
+    if((solNum()+m.id)%6===0)lifeReview(m);
+    // practicing toward a goal, with a mentor if there is one
+    if(m.aim){const j=m.aim.job;if(j===m.job||!JOBS[j]){m.aim=null;continue}
+      let g=M(m.guide);if(!g||g.job!==j||g.comm!==m.comm){g=ms.find(o=>o.id!==m.id&&o.job===j&&o.comm===m.comm&&(o.skills[j]||0)>=65);m.guide=g?g.id:null;
+        if(g){memo(m,`Started learning from ${g.name}`,2,g.id);relAdd(m.id,g.id,10);learnLesson(m,'grateful',`${g.name} took them under their wing`,0.12)}}
+      m.skills[j]=Math.min(100,(m.skills[j]||0)+1.4*(g?2:1)*(has(m,'quick')?1.5:1)*(has(m,'driven')?1.25:1));
+      if(S.settings.selfJobs!==false&&solNum()-(m.byYou??-99)>8&&(m.job==='none'||ms.filter(o=>o.job===m.job).length>2)&&m.skills[j]>=(m.job==='none'?0:(m.skills[m.job]||0))-5){
+        const b=allB().find(b=>BUILD[b.type].job===j&&b.built&&!b.damaged&&b.workers.length<slotsOf(b)&&(b.comm===m.comm||!b.comm));
+        if(b){const was=m.job;assignJob(m,j,b.id);m.wish=true;m.joy=Math.min(100,m.joy+12);memo(m,`Became ${aan(JOBS[j].name)}`,3);
+          chronicle(was==='none'?`${m.name} practiced until they were good enough to become ${aan(JOBS[j].name)}.`:`${m.name} left the life of ${aan(JOBS[was].name)} behind to become ${aan(JOBS[j].name)}, as they'd been practicing for.`,'joy');m.aim=null}}}
+  }
+  // schools of thought: founding
+  const nS=Object.values(S.schools).filter(s=>!s.native).length;
+  if(nS<6&&Math.random()<0.06){const th=adults.filter(m=>m.attr.mind>=42&&!m.school&&((m.mem||[]).length>=3||m.life==='fulfilled'||m.life==='adrift')).sort((a,b)=>b.attr.mind-a.attr.mind)[0];
+    if(th){const s=foundSchool(th);if(s){memo(th,`Founded ${s.name}`,3);th.fame=(th.fame||0)+1;chronicle(`${th.name} began teaching a new philosophy: ${s.name}. ${schoolText(s)}`,'law');toast('A new school of thought','law');say(th,'Let me tell you what I believe.')}}}
+  const live=Object.values(S.schools);
+  for(const s of live)s.members=0;
+  for(const m of adults){
+    const s=Sch(m.school);
+    if(s){s.members++;for(const k of AX)if(s.tenets[k])m.ethos[k]=clamp(belief(m,k)+(s.tenets[k]*0.7-belief(m,k))*0.04,-1,1);
+      if(tenetDist(m,s.tenets)>1.5&&Math.random()<0.1){m.school=null;memo(m,`Left ${s.name}`,-1)}continue}
+    if(Math.random()>(m.life==='adrift'?0.25:0.12))continue;
+    const opts=new Set();for(const id of m.fr||[]){const f=M(id);if(f&&f.school)opts.add(f.school)}const g=M(m.guide);if(g&&g.school)opts.add(g.school);
+    const home=live.filter(s=>!s.native);if(!opts.size&&home.length&&Math.random()<0.3)opts.add(pick(home).id);
+    let best=null,bd=1.05;for(const id of opts){const sc=Sch(id);if(!sc)continue;const d=tenetDist(m,sc.tenets);if(d<bd){bd=d;best=sc}}
+    if(best){m.school=best.id;best.members++;memo(m,`Joined ${best.name}`,2);if(Math.random()<0.25)say(m,'It all makes sense now.')}}
+  // a big school splits when someone thinks differently enough
+  for(const s of live){if(s.members<10||Math.random()>0.03)continue;const mem=adults.filter(m=>m.school===s.id);const rebel=mem.filter(m=>m.attr.mind>=38).sort((a,b)=>tenetDist(b,s.tenets)-tenetDist(a,s.tenets))[0];
+    if(!rebel||tenetDist(rebel,s.tenets)<0.7)continue;rebel.school=null;const ns=foundSchool(rebel,s.id);if(!ns){rebel.school=s.id;continue}
+    let n=0;for(const m of mem)if(m!==rebel&&tenetDist(m,ns.tenets)<tenetDist(m,s.tenets)&&Math.random()<0.6){m.school=ns.id;n++}
+    chronicle(`${rebel.name} broke away from ${s.name} to found ${ns.name}${n?`, and ${n} follower${n>1?'s':''} went with them`:''}. ${schoolText(ns)}`,'law')}
+  // rival schools argue in public
+  if(Math.random()<0.18){const big=live.filter(s=>s.members>=3);const pairs=[];for(const a of big)for(const b of big)if(a.id<b.id&&AX.some(k=>a.tenets[k]&&b.tenets[k]&&a.tenets[k]!==b.tenets[k]))pairs.push([a,b]);
+    if(pairs.length){const [a,b]=pick(pairs),k=AX.find(k=>a.tenets[k]&&b.tenets[k]&&a.tenets[k]!==b.tenets[k]);
+      const voice=s=>adults.filter(m=>m.school===s.id).sort((x,y)=>y.attr.mind-x.attr.mind).slice(0,3).reduce((t,m)=>t+m.attr.mind+m.rep*0.3,0)+rnd(0,60);
+      const va=voice(a),vb=voice(b),win=va>vb?a:b,lose=win===a?b:a;let n=0;
+      for(const m of adults.filter(m=>m.school===lose.id))if(n<3&&Math.random()<0.25){m.school=win.id;n++;memo(m,`Was won over to ${win.name} in a debate`,1)}
+      for(const m of adults.filter(m=>m.school===a.id).slice(0,4))for(const o of adults.filter(o=>o.school===b.id).slice(0,4))if(Math.random()<0.2)relAdd(m.id,o.id,-6);
+      const place=builtOf('hall').some(working)?'At the Concord Hall':'Around the Hearthstone';
+      const txt=`${place}, ${a.name} and ${b.name} argued over ${AXQ[k]}. ${win.name} carried the night${n?` and won over ${n} listener${n>1?'s':''}`:''}.`;
+      S.debates.unshift({s:solNum(),t:txt});if(S.debates.length>8)S.debates.length=8;chronicle(txt,'law')}}
+  // a popular school asks for laws that match what it teaches
+  const top=live.filter(s=>!s.native).sort((a,b)=>b.members-a.members)[0];
+  if(top&&top.members>=Math.max(4,adults.length*0.2)&&Math.random()<0.08&&builtOf('hall').some(working)&&!S.petitions.some(p=>p.kind==='law')){
+    let bestL=null,bs=0.3;for(const k in LAWS){if(k==='government')continue;const cur=LAWS[k].opts[S.laws[k]].eth||[0,0];LAWS[k].opts.forEach((o,i)=>{if(i===S.laws[k]||!o.eth)return;const sc=(o.eth[0]-cur[0])*(top.tenets.eq||0)+(o.eth[1]-cur[1])*(top.tenets.prog||0);if(sc>bs){bs=sc;bestL={k,o:i}}})}
+    const f=M(top.founder),cm=f&&C(f.comm)?f.comm:(allC()[0]||{}).id;
+    if(bestL&&cm!=null){S.petitions.push({from:{t:'comm',id:cm},kind:'law',k:bestL.k,o:bestL.o,id:S.nextId++,sol:solNum(),expires:solNum()+3});toast(`${top.name} is asking for a change in the law`,'law')}}
+  // ideas cross borders, both ways
+  for(const n of allN()){
+    if(!n.school||!Sch(n.school)){const fake={id:null,name:n.place,ethos:{eq:n.ethos.eq,prog:n.ethos.prog,peace:rnd(-0.6,0.6),spirit:rnd(-0.6,0.6)}};const s=foundSchool(fake,null,n.place);n.school=s?s.id:fake.school||null}
+    const ns=Sch(n.school);if(!ns)continue;
+    for(const k of ['eq','prog'])if(ns.tenets[k])n.ethos[k]=clamp(n.ethos[k]+(ns.tenets[k]*0.6-n.ethos[k])*0.02,-1,1);
+    if(!n.met)continue;const linked=n.pact||nRel(n.id,HOME)>10;
+    if(linked&&top&&top.id!==n.school&&top.members>=5&&Math.random()<0.02){const d=Math.hypot((top.tenets.eq||0)*0.6-n.ethos.eq,(top.tenets.prog||0)*0.6-n.ethos.prog);
+      if(d<0.9){const old=ns.name;n.school=top.id;chronicle(`${top.name} has spread to ${natName(n)}, replacing ${old} as what most of its people believe.`,'law')}}
+    else if(linked&&Math.random()<0.04){const m=pick(adults.filter(m=>!m.school||Math.random()<0.2));if(m&&tenetDist(m,ns.tenets)<0.9){m.school=ns.id;memo(m,`Took up ${ns.name}, brought by travelers from ${n.place}`,1);if(Math.random()<0.5)chronicle(`Travelers from ${n.place} won ${m.name} over to ${ns.name}.`,'info')}}}
+}
+// how much a country's beliefs make it want to fight
+const schoolAgg=id=>{const s=id===HOME?null:Sch(N_(id)&&N_(id).school);return s&&s.tenets.peace?(s.tenets.peace>0?0.6:1.4):1};
+const peaceShare=()=>{const a=allM().filter(m=>isAdult(m));if(!a.length)return 0;return a.filter(m=>Sch(m.school)&&Sch(m.school).tenets.peace>0).length/a.length};
+/* ================= science: universities, experiments, lost knowledge, spies, forecasts, space ================= */
+const FIELDS={stone:{name:'Stone and fire',desc:'quarries, kilns, hearths and building'},life:{name:'Life and spores',desc:'gardens, budding, foraging and wells'},
+  song:{name:'Song and society',desc:'law, teaching and the archives'},hum:{name:'Hum and crystal',desc:'turbines, spires and vents'},sky:{name:'Sky and stars',desc:'the sky, weather and the space program'}};
+const TECH_FIELD={kilncraft:'stone',hearthcraft:'stone',dusttaming:'hum',sporecraft:'life',deeplichen:'life',buddinggardens:'life',concord:'song',mentorship:'song',patronage:'song',academies:'song',harmonics:'hum',echomapping:'hum',skyweaving:'sky',rocketry:'sky'};
+const JOB_FIELD={tender:'life',sporer:'life',midwife:'life',forager:'life',diviner:'life',sculptor:'stone',listener:'stone',singer:'stone',keeper:'stone',shepherd:'hum',crystal:'hum',tapper:'hum',weaver:'sky',starkeeper:'sky',scout:'sky',cartographer:'sky',forecaster:'sky'};
+const unisOf=f=>allB().filter(b=>b.type==='university'&&b.built&&!b.damaged&&(b.field||'song')===f).length;
+function fieldOfTarget(k){if(!k)return null;if(k.startsWith('idea:')){const i=S.ideas.find(x=>'idea:'+x.id===k);return i?(JOB_FIELD[i.job]||'song'):null}return TECH_FIELD[k]||null}
+const studyMul=()=>{const f=fieldOfTarget(S.research.current);return f?1+0.6*unisOf(f):1};
+/* ---- experiments ---- */
+const EXPERIMENTS={
+  lattice:{name:'Overcharge the hum lattice',lore:60,glint:300,win:'The lattice held! The colony can store 300 more hum, for good.',do:()=>{S.bonus.humcap=(S.bonus.humcap||0)+300}},
+  lens:{name:'Grind a star-lens',lore:80,glint:250,win:'Through the new lens the archivists saw the answer at once: the current study is finished.',do:()=>{const tg=researchTarget(S.research.current);if(tg)S.research.progress=Math.max(S.research.progress,tg.idea?tg.cost:TECHS[S.research.current].cost);else S.lore+=150}},
+  quicken:{name:'Quicken the lichen',lore:70,glint:200,win:'The quickened lichen took. Lichen Tenders now work 15% faster.',do:()=>{S.boost.tender=(S.boost.tender||0)+0.15}},
+  deepspore:{name:'Wake the deep spores',lore:90,glint:350,win:'The old spores woke. Every budling from now on starts with more skill.',do:()=>{S.bonus.budskill=(S.bonus.budskill||0)+6}},
+};
+const labs=()=>allB().filter(b=>(b.type==='archive'||b.type==='university')&&b.built&&!b.damaged&&!b.buried);
+function expChance(){const best=Math.max(0,...allM().filter(m=>m.job==='archivist').map(m=>m.skills.archivist||0));return clamp(0.5+best/400+0.08*allB().filter(b=>b.type==='university'&&b.built).length,0.3,0.9)}
+function startExperiment(k,auto){const E=EXPERIMENTS[k];if(!E||S.exp)return false;const lab=pick(labs());if(!lab){if(!auto)toast('Experiments need a working Dream Archive or University.','warn');return false}
+  if(!auto&&(S.lore<E.lore||S.treasury<E.glint)){toast(`That needs ${E.lore} lore and ◈ ${E.glint}.`,'warn');return false}
+  S.lore-=E.lore;if(!auto){S.treasury-=E.glint;led('research',-E.glint)}S.exp={k,lab:lab.id,sol:solNum(),p:expChance()};
+  chronicle(`${auto?'On their own, the archivists':'The archivists'} began a risky experiment in the ${bName(lab)}: ${E.name.toLowerCase()}.`,'law');return true}
+function resolveExperiment(){const x=S.exp;S.exp=null;const E=EXPERIMENTS[x.k],lab=B(x.lab);if(!E)return;
+  if(Math.random()<x.p){E.do();chronicle(`Success! ${E.win}`,'joy');toast('An experiment worked!','joy');sfx('invent');S.stats.expWins=(S.stats.expWins||0)+1}
+  else{if(lab&&!BUILD[lab.type].wonder){lab.damaged=true;lab.repair=0;lab.repairNeed=Math.round(BUILD[lab.type].work*0.4)}
+    for(const m of allM())if(lab&&!m.away&&Math.hypot(m.x-lab.tx,m.y-lab.ty)<2){m.vit=Math.max(0,m.vit-15);say(m,'My antennae!')}
+    UI.shake=performance.now()+600;chronicle(`Boom! The experiment to ${E.name.toLowerCase().replace(/^the /,'')} blew up${lab?` and wrecked the ${bName(lab)}`:''}. Nobody was badly hurt.`,'warn');toast('An experiment exploded!','warn');sfx('storm')}}
+/* ---- lost knowledge ---- */
+function revokeInvention(i){const e=i.eff;switch(e.type){
+  case'boost':S.boost[e.job]=Math.max(0,(S.boost[e.job]||0)-e.v);break;case'thrift':S.thrift[e.job]=Math.min(1,(S.thrift[e.job]??1)/(1-e.v));break;
+  case'learn':S.learnMul[e.job]=Math.max(1,(S.learnMul[e.job]||1)/(1+e.v));break;case'automate':S.auto[e.job]=Math.max(0,(S.auto[e.job]||0)-1);enforceSlots();break;
+  case'unlock':break;default:if(COLONY_EFFECTS[e.type])S.bonus[e.type]=Math.max(0,(S.bonus[e.type]||0)-e.v)}}
+function loseKnowledge(cid){
+  if(W('archivehall'))return{lost:[],saved:true};
+  const copies=labs().length,risk=copies>=2?0.12:0.5;
+  const at=shuffle(S.inventions.filter(i=>i.eff.type!=='unlock'&&(i.comm===cid||i.comm==null))),lost=[];
+  for(const i of at){if(lost.length>=rint(2,6))break;if(Math.random()<risk)lost.push(i)}
+  for(const i of lost)revokeInvention(i);S.inventions=S.inventions.filter(i=>!lost.includes(i));
+  if(!S.lost)S.lost=[];S.lost.push(...lost.map(i=>({...i,lostSol:solNum()})));return{lost,saved:copies>=2};
+}
+/* ---- spies ---- */
+function spySol(){
+  for(const n of metN()){n.know=(n.know||20)+n.pop*0.08*(n.gov==='technocracy'?1.6:1);
+    if(nRel(n.id,HOME)>5||Math.random()>0.03*(n.gov==='technocracy'||n.gov==='league'?1.6:1))continue;
+    const caught=Math.random()<Math.min(0.85,0.15+(S.staff.warden||0)*0.08);
+    if(caught){nRelAdd(n.id,HOME,-8);S.stats.spiesCaught=(S.stats.spiesCaught||0)+1;chronicle(`Dust Wardens caught a spy from ${natName(n)} sneaking out of the archives.`,'law')}
+    else{const amt=Math.round(Math.min(S.lore*0.15,40+n.know*0.1));if(amt<5)continue;S.lore-=amt;n.know+=amt;if(Math.random()<0.6)chronicle(`${amt} lore went missing from the archives. Spies from ${natName(n)} are suspected.`,'warn')}}
+  // with royalties at stake, feuding communities copy each other's plans
+  if(S.laws.patents===1&&Math.random()<0.12){const cs=allC();for(const a of shuffle([...cs]))for(const b of cs){if(a===b||(a.rel[b.id]||0)>-30)continue;
+    const inv=S.inventions.find(i=>i.comm===a.id&&M(i.by)&&M(i.by).royalty>0);if(!inv)continue;const thief=allM().find(m=>m.comm===b.id&&isAdult(m));if(!thief)continue;
+    M(inv.by).royalty--;thief.royalty=(thief.royalty||0)+1;thief.wealth+=20;commRelAdd(a.id,b.id,-6);
+    chronicle(`Spies from ${b.name} copied the plans for ${inv.name} from ${a.name}. Its inventor loses part of their royalties.`,'warn');return}}
+}
+function sendSpies(n){if(solNum()-(n.spySol??-99)<3){toast('Your last spies just got back. Wait a few sols.','warn');return}if(S.treasury<300){toast('Spies cost ◈ 300.','warn');return}
+  S.treasury-=300;led('diplomacy',-300);n.spySol=solNum();
+  const scouts=allM().filter(m=>m.job==='scout').length,p=clamp(0.5+0.04*scouts-(n.gov==='junta'?0.15:0),0.2,0.8);
+  if(Math.random()<p){const lore=Math.round(30+(n.know||20)*0.15);S.lore+=lore;let extra='';
+    if(Math.random()<0.35){const job=pick(Object.keys(S.boost).length?Object.keys(S.boost):['tender']);const e={type:'boost',job,v:0.06};
+      applyInvention({id:S.nextId++,name:`${n.place}'s ${pick(['Secret','Hidden','Borrowed'])} ${pick(['Method','Device','Knack'])}`,by:null,byName:n.place,job,eff:e});extra=' They also stole a whole invention.'}
+    chronicle(`Our spies slipped into ${natName(n)} and brought back ${lore} lore.${extra}`,'joy')}
+  else{nRelAdd(n.id,HOME,-25);chronicle(`Our spies were caught in ${natName(n)}. They are furious.`,'warn')}}
+/* ---- forecasts ---- */
+const forecastOn=()=>allB().some(b=>b.type==='mast'&&b.built&&!b.damaged&&b.workers.some(id=>{const m=M(id);return m&&!m.away}))||!!(S.space&&S.space.sats&&S.space.sats.weather);
+function startStorm(){S.ev.storm=SOL;S.stormSoon=false;yearNote('storms');sfx('storm');chronicle('A dust storm rolls in. Turbines spin hard, but outdoor work slows.','warn');toast('A dust storm is rolling in.','warn')}
+/* ---- the space program ---- */
+const MISSIONS={
+  weather:{name:'Weather satellite',cost:{glint:1500,glass:40},hum:300,sols:3,desc:'Watches the whole sky. Storms and meteors are always forecast a sol early.'},
+  survey:{name:'Survey satellite',cost:{glint:1800,glass:50},hum:300,sols:3,desc:'Maps the entire world from orbit, revealing every land and country.'},
+  relay:{name:'Relay satellite',cost:{glint:2500,glass:60},hum:400,sols:4,desc:'Carries messages around the planet. Trade pacts pay 25% more, and it can listen for Earth.'},
+  phobos:{name:'Phobos landing',cost:{glint:6000,glass:120},hum:800,sols:6,req:()=>Object.keys(S.space.sats).length>=2,need:'two satellites in orbit',desc:'Lands a crew on the little moon to found Phobos Base, which mines and studies every sol.'},
+  signal:{name:'Signal to Earth',cost:{glint:3000,glass:60},hum:500,sols:4,req:()=>!!S.space.sats.relay,need:'the relay satellite',desc:'Points a great dish at the old home world and calls out. Nobody knows if anyone will answer.'},
+};
+const missionDone=k=>k==='phobos'?!!S.space.phobos:k==='signal'?!!S.space.earth:!!S.space.sats[k];
+const padOf=()=>allB().find(b=>b.type==='launchpad'&&b.built);
+function startMission(k){const M0=MISSIONS[k],pad=padOf();if(!pad||pad.damaged){toast('You need a working Launch Pad.','warn');return}if(S.space.prep){toast('A rocket is already being built.','warn');return}
+  if(missionDone(k)){toast('That mission is done.','warn');return}if(M0.req&&!M0.req()){toast(`That needs ${M0.need} first.`,'warn');return}
+  const miss=costMissing(M0.cost);if(miss){toast(`That needs ${miss}.`,'warn');return}if(S.hum<M0.hum){toast(`That needs ${M0.hum} hum.`,'warn');return}
+  payCost(M0.cost);S.hum-=M0.hum;led('space',-M0.cost.glint);S.space.prep={k,done:0,need:M0.sols};chronicle(`Work began on a rocket for the ${M0.name.toLowerCase()}.`,'info')}
+function launch(){const x=S.space.prep,M0=MISSIONS[x.k],pad=padOf();S.space.prep=null;if(!pad)return;
+  const p=clamp(0.8+0.04*unisOf('sky')+0.01*(S.space.launches||0),0.8,0.96),ok=Math.random()<p;S.space.launches=(S.space.launches||0)+1;
+  UI.launch={x:pad.tx+1,y:pad.ty+1,t0:performance.now(),ok};sfx(ok?'fanfare':'storm');
+  if(!ok){pad.damaged=true;pad.repair=0;pad.repairNeed=Math.round(BUILD.launchpad.work*0.3);S.space.fails=(S.space.fails||0)+1;chronicle(`The rocket for the ${M0.name.toLowerCase()} exploded just after liftoff, scorching the Launch Pad. The engineers will try again.`,'warn');toast('The rocket exploded!','warn');return}
+  if(x.k==='phobos'){S.space.phobos={sol:solNum(),pop:4};chronicle('Touchdown! A crew of four landed on Phobos and raised the first dome of Phobos Base.','joy')}
+  else if(x.k==='signal'){S.space.earth={sent:solNum(),reply:solNum()+rint(6,12),answer:null};chronicle('The great dish sent a call toward Earth. If anyone answers, it will take several sols to arrive.','joy')}
+  else{S.space.sats[x.k]=solNum();chronicle(`The ${M0.name.toLowerCase()} reached orbit! ${M0.desc}`,'joy');
+    if(x.k==='survey'){S.map.seen.fill(1);UI.mapVer++}}
+  toast(`Launch succeeded: ${M0.name}`,'joy');yearNote('wonders',M0.name);
+}
+function spaceSol(){
+  const sp=S.space;if(!sp)return;
+  if(sp.prep&&padOf()&&!padOf().damaged){sp.prep.done+=1+0.5*unisOf('sky');if(sp.prep.done>=sp.prep.need)launch()}
+  if(sp.phobos){const ph=sp.phobos;S.lore+=6+ph.pop;const g=Math.round(40+ph.pop*8);S.treasury+=g;led('space',g);S.stock.glass+=1;
+    if(ph.pop<24&&Math.random()<0.15){ph.pop++;if(Math.random()<0.3)chronicle(`Phobos Base grew to ${ph.pop} martians.`,'info')}}
+  if(sp.earth&&!sp.earth.answer&&solNum()>=sp.earth.reply){const a=pick(['gift','knowledge','trade']);sp.earth.answer=a;sfx('fanfare');
+    if(a==='gift'){S.treasury+=3000;S.stock.glass+=100;led('space',3000);chronicle('Earth answered! After a long silence, a freighter arrived from the old world carrying ◈ 3,000 and 100 sandglass as a gift.','joy')}
+    else if(a==='knowledge'){S.lore+=400;chronicle("Earth answered! They sent everything they've learned, worth 400 lore to the archivists.",'joy')}
+    else chronicle('Earth answered! Their trading ships will now visit the Bazaar: caravans pay 15% more and charge 15% less.','joy');
+    toast('Earth answered!','joy')}
+}
+function sciSol(){
+  if(!S.space)S.space={sats:{},launches:0};
+  if(S.stormIn){S.stormIn=0;startStorm()}
+  if(S.exp&&solNum()>S.exp.sol)resolveExperiment();
+  else if(!S.exp&&S.lore>300&&labs().length&&Math.random()<0.04)startExperiment(pick(Object.keys(EXPERIMENTS)),true);
+  if(S.lost&&S.lost.length&&S.ideas.length<6){const ar=allM().filter(m=>m.job==='archivist').length;
+    if(Math.random()<0.08*(1+ar/4)){const i=S.lost.shift();S.ideas.push({id:S.nextId++,name:i.name,by:i.by,byName:i.byName,job:i.job,eff:i.eff,cost:Math.round(20+S.era*8),sol:solNum(),redisc:true});
+      chronicle(`Archivists began piecing together the lost plans for ${i.name}.`,'info')}}
+  spySol();spaceSol();
+}
+/* ================= a living planet: long seasons, wild lands, smoke, floods, quakes, wildlife, water ================= */
+FEAT.ore=7;FEAT_NAMES[7]='Ore vein';FEAT_TIPS[7]='Regolith Quarries beside an ore vein dig 60% more and last far longer.';
+const YEAR_KINDS={
+  mild:{name:'a mild year',lichen:1,storm:1,cold:1,water:1,desc:'Nothing out of the ordinary is expected.'},
+  bountiful:{name:'a bountiful year',lichen:1.18,storm:0.9,cold:0.95,water:1,desc:'Harvests should be rich.'},
+  stormy:{name:'a stormy year',lichen:0.95,storm:1.9,cold:1,water:1,desc:'They expect storm after storm.'},
+  bitter:{name:'a bitter year',lichen:0.9,storm:1,cold:1.3,water:0.95,desc:'The winter will be long and hard, and the polar ice will spread far.'},
+  wet:{name:'a wet year',lichen:1.05,storm:0.8,cold:1,water:1.25,desc:'The ice runs thick, and wells will overflow.'}};
+const yearKind=()=>YEAR_KINDS[S.yearKind]||YEAR_KINDS.mild;
+function rollYear(){const k=pick(['mild','mild','bountiful','stormy','bitter','wet']);S.yearKind=k;if(solNum()>1)chronicle(`Forecasters say Year ${yearOf()} will be ${YEAR_KINDS[k].name}. ${YEAR_KINDS[k].desc}`,'info')}
+// polar ice: the caps creep in from the top and bottom of the world in winter and pull back in summer
+function capDepth(){const d=[3,1.4,2.4,5.5][seasonIdx()]*(S.yearKind==='bitter'?1.3:1);return Math.max(0,d-(S.sky||0)/12)}
+function polarAt(x,y){const d=capDepth();if(d<=0)return 0;const e=Math.min(y,MAP_H-1-y)+(hash2(x,0,77)-0.5)*1.8;return e<d?Math.min(1,(d-e)/1.6):0}
+/* ---- clean air ---- */
+const POLLUTERS={kiln:0.8,ventap:1,hearth:0.6};
+const airLaw=()=>S.laws.air||0,airOutMul=()=>[1,0.9,0.7][airLaw()];
+const airWord=v=>v<0.15?'Clear':v<0.45?'Hazy':v<0.9?'Smoky':'Choking';
+function commAir(cm){const s=S.map.smog;if(!s)return 0;let t=0,n=0;for(let y=Math.floor(cm.cy)-4;y<=cm.cy+4;y++)for(let x=Math.floor(cm.cx)-4;x<=cm.cx+4;x++){if(!inMap(x,y))continue;t+=s[T(x,y)];n++}return n?t/n:0}
+function smogSol(){
+  const N=MAP_W*MAP_H,s=S.map.smog,f=[1,0.5,0.15][airLaw()];
+  for(const b of allB()){const e=POLLUTERS[b.type];if(!e||!b.built||!b.workers.length)continue;s[T(b.tx,b.ty)]+=e*b.workers.length*b.level*f}
+  const n=new Float32Array(N);
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){const i=y*MAP_W+x;let t=s[i]*0.5,c=0.5;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H)continue;t+=s[ny*MAP_W+nx]*0.125;c+=0.125}n[i]=t/c*(S.ev.storm>0?0.6:0.84)}
+  for(let i=0;i<N;i++)s[i]=n[i]<0.01?0:Math.round(n[i]*1000)/1000;
+  UI.mapVer++;
+  // breathing it is bad for you
+  for(const m of allM()){if(m.away)continue;const v=s[T(clamp(Math.floor(m.x),0,MAP_W-1),clamp(Math.floor(m.y),0,MAP_H-1))];if(v<0.45)continue;
+    m.vit=Math.max(0,m.vit-v*2);m.joy=Math.max(0,m.joy-v);if(v>0.8&&Math.random()<0.05*v&&infect(m))say(m,'*cough* This air...')}
+  // when the air turns foul, martians organize
+  let worst=null,wv=0;for(const cm of allC()){cm.air=commAir(cm);if(cm.air>wv){wv=cm.air;worst=cm}}
+  S.smogDays=wv>0.6?(S.smogDays||0)+1:Math.max(0,(S.smogDays||0)-1);
+  if(!S.movement&&S.smogDays>=3&&worst){const lead=allM().filter(m=>m.comm===worst.id&&isAdult(m)).sort((a,b)=>b.attr.heart-a.attr.heart)[0];
+    S.movement={name:'the Clear Sky Movement',since:solNum(),lead:lead?lead.id:null,comm:worst.id};
+    chronicle(`Choking smoke over ${worst.name} has started ${S.movement.name}${lead?`, led by ${lead.name}`:''}. They want the kilns and vent taps cleaned up.`,'law');toast('A clean air movement has formed','law');if(lead)say(lead,'We deserve clean air!')}
+  if(S.movement){const mv=S.movement;
+    if(wv<0.3){mv.clean=(mv.clean||0)+1;if(mv.clean>=6){chronicle(`The air has cleared, and ${mv.name} disbanded, its work done.`,'joy');S.movement=null}}else mv.clean=0;
+    if(S.movement&&airLaw()<2&&Math.random()<0.3&&!S.petitions.some(p=>p.kind==='law'&&p.k==='air')&&C(mv.comm)){
+      S.petitions.push({from:{t:'comm',id:mv.comm},kind:'law',k:'air',o:airLaw()+1,id:S.nextId++,sol:solNum(),expires:solNum()+3});toast(`${C(mv.comm).name} is asking for cleaner air.`,'law')}
+    if(S.movement&&Math.random()<0.25){for(const m of allM())if(S.map.smog[T(clamp(Math.floor(m.x),0,MAP_W-1),clamp(Math.floor(m.y),0,MAP_H-1))]>0.45){m.ethos.prog=clamp(m.ethos.prog-0.01,-1,1);m.ethos.eq=clamp(m.ethos.eq+0.005,-1,1)}
+      if(Math.random()<0.4&&C(mv.comm))chronicle(`Martians marched through ${C(mv.comm).name} chanting for clean air.`,'law')}}
+}
+/* ---- wild lands ---- */
+const wildLaw=()=>S.laws.wild||0;
+const reserved=i=>wildLaw()===2&&hash2(i%MAP_W,(i/MAP_W)|0,91)<0.5;
+/* ---- a thicker sky melts the ice ---- */
+function terraformSol(){
+  const sky=S.sky||0;if(sky<8)return;
+  let melted=0;for(let i=0;i<MAP_W*MAP_H;i++)if(S.map.feat[i]===FEAT.ice&&Math.random()<sky/300){S.map.feat[i]=0;S.map.frost[i]=0;melted++}
+  if(melted){refreshBonuses();UI.mapVer++;if(Math.random()<0.3)chronicle(`The thickening sky melted ${melted} ice patch${melted>1?'es':''}. Wells that drew from them will run thinner.`,'warn')}
+  if(Math.random()<Math.min(0.3,(sky-8)/40))flood();
+}
+function flood(){
+  const N=MAP_W*MAP_H,hc=S.map.hc,W1=MAP_W+1,low=(x,y)=>Math.min(hc[y*W1+x],hc[y*W1+x+1],hc[(y+1)*W1+x],hc[(y+1)*W1+x+1]);
+  const shore=[];for(let i=0;i<N;i++){if(!S.map.water[i])continue;const x=i%MAP_W,y=(i/MAP_W)|0;for(const [dx,dy] of DIRS.slice(0,4)){const nx=x+dx,ny=y+dy;if(!inMap(nx,ny))continue;const j=T(nx,ny);if(!S.map.water[j]&&!S.map.mtn[j]&&low(nx,ny)<0.24)shore.push(j)}}
+  if(!shore.length)return;const near=shore.filter(j=>allC().some(c=>Math.hypot(j%MAP_W-c.cx,((j/MAP_W)|0)-c.cy)<14)),seed=pick(near.length&&Math.random()<0.7?near:shore);
+  const q=[seed],done=new Set([seed]);let hurt=[],n=0;const lim=rint(3,7);
+  while(q.length&&n<lim){const j=q.shift(),x=j%MAP_W,y=(j/MAP_W)|0;
+    if(S.map.occ[j]!=null){const b=B(S.map.occ[j]);if(b&&!b.damaged&&!BUILD[b.type].wonder){b.damaged=true;b.repair=0;b.repairNeed=Math.round(BUILD[b.type].work*0.3);hurt.push(bName(b))}continue}
+    S.map.water[j]=1;S.map.feat[j]=0;S.map.rock[j]=0;S.map.road[j]=0;for(const [cx2,cy2] of [[x,y],[x+1,y],[x,y+1],[x+1,y+1]])hc[cy2*W1+cx2]=0;n++;
+    for(const [dx,dy] of DIRS.slice(0,4)){const nx=x+dx,ny=y+dy;if(!inMap(nx,ny))continue;const k=T(nx,ny);if(done.has(k)||S.map.water[k]||S.map.mtn[k]||low(nx,ny)>0.3)continue;done.add(k);q.push(k)}}
+  if(!n&&!hurt.length)return;
+  for(const m of allM())if(!m.away&&isWater(Math.floor(m.x),Math.floor(m.y))){const h=B(m.home)||B(C(m.comm)&&C(m.comm).hearth);if(h){const p=posOf(h,m);m.x=m.px=p.x;m.y=m.py=p.y;m.path=[];m.goalKey=''}}
+  mapChanged();bumpTerr();refreshBonuses();
+  const cm=allC().map(c=>[c,Math.hypot(seed%MAP_W-c.cx,((seed/MAP_W)|0)-c.cy)]).sort((a,b)=>a[1]-b[1])[0];
+  chronicle(`Meltwater from the warming sky flooded ${n} tile${n===1?'':'s'}${cm&&cm[1]<16?` near ${cm[0].name}`:''}.${hurt.length?` The water damaged the ${namesList(hurt,2)}.`:''}`,'warn');if(hurt.length)toast('A flood damaged buildings','warn');
+}
+/* ---- disasters ---- */
+function nearColonyTile(r,pred){const cs=allC();if(!cs.length)return null;for(let g=0;g<300;g++){const c=pick(cs),x=Math.floor(c.cx+rnd(-r,r)),y=Math.floor(c.cy+rnd(-r,r));if(inMap(x,y)&&pred(x,y,T(x,y)))return{x,y}}return null}
+const nearestCommName=(x,y)=>{const c=allC().map(c=>[c,Math.hypot(x-c.cx,y-c.cy)]).sort((a,b)=>a[1]-b[1])[0];return c?c[0].name:S.colony};
+function hitBuildings(x,y,r,p,kind){const out=[];for(const m of allM())if(!m.away&&isAdult(m)&&Math.hypot(m.x-x,m.y-y)<r+2){memo(m,kind==='bury'?'Lived through a landslide':'Lived through a disaster',-2);learnLesson(m,'watchful','living through a disaster',0.25)}
+  for(const b of allB()){if(BUILD[b.type].wonder||b.buried||b.damaged)continue;if(Math.hypot(b.tx+b.size/2-x,b.ty+b.size/2-y)>r||Math.random()>p)continue;
+  if(kind==='bury')b.buried=true;else{b.damaged=true;b.repair=0;b.repairNeed=Math.round(BUILD[b.type].work*0.3)}out.push(bName(b))}return out}
+function scatterRocks(x,y,r,n){let k=0;for(let g=0;g<n*6&&k<n;g++){const tx=Math.floor(x+rnd(-r,r)),ty=Math.floor(y+rnd(-r,r));if(!inMap(tx,ty))continue;const i=T(tx,ty);if(S.map.occ[i]!=null||S.map.water[i]||S.map.mtn[i]||S.map.feat[i]||S.map.road[i]||S.map.rock[i])continue;S.map.rock[i]=rint(1,2);k++}return k}
+function disaster(kind){
+  if(kind==='fire'){const b=pick(allB().filter(b=>['archive','university','workshop','kiln'].includes(b.type)&&b.built&&!b.damaged));if(!b)return;const nm=bName(b),cid=b.comm,isLab=b.type==='archive'||b.type==='university';
+    if(isLab&&Math.random()<0.45){demolish(b);mapChanged();const r=loseKnowledge(cid);
+      chronicle(`Fire! The ${nm} burned to the ground.${r.lost.length?` The colony lost the plans for ${namesList(r.lost.map(i=>i.name),2)}. Archivists may piece them back together in time.`:r.saved?' Copies kept in other archives saved what it held.':''}`,'warn')}
+    else{b.damaged=true;b.repair=0;b.repairNeed=Math.round(BUILD[b.type].work*0.35);chronicle(`Fire broke out in the ${nm}. Martians put it out, but it needs repairs.`,'warn')}
+    toast('Fire!','warn');return}
+  if(kind==='quake'){const p=nearColonyTile(10,(x,y,i)=>!S.map.water[i]);if(!p)return;const hit=hitBuildings(p.x,p.y,3.5,0.45);scatterRocks(p.x,p.y,3,rint(2,4));UI.shake=performance.now()+900;sfx('storm');
+    chronicle(`A marsquake shook ${nearestCommName(p.x,p.y)}.${hit.length?` It cracked the ${namesList(hit,2)}.`:' Nothing was badly hurt.'}`,'warn');toast('Marsquake!','warn')}
+  else if(kind==='slide'){const p=nearColonyTile(12,(x,y,i)=>S.map.mtn[i]&&S.map.seen[i]);if(!p)return;const hit=hitBuildings(p.x+0.5,p.y+0.5,2.5,0.7,'bury');scatterRocks(p.x+0.5,p.y+0.5,2.2,rint(3,6));
+    chronicle(`A landslide tumbled down the mountainside near ${nearestCommName(p.x,p.y)}.${hit.length?` It buried the ${namesList(hit,2)}.`:''}`,'warn');toast('Landslide!','warn')}
+  else if(kind==='erupt'){const p=nearColonyTile(14,(x,y,i)=>S.map.feat[i]===FEAT.vent);if(!p)return;const hit=hitBuildings(p.x+0.5,p.y+0.5,2.5,0.6);
+    for(let y=p.y-3;y<=p.y+3;y++)for(let x=p.x-3;x<=p.x+3;x++)if(inMap(x,y))S.map.smog[T(x,y)]+=2.5*Math.max(0,1-Math.hypot(x-p.x,y-p.y)/3.5);
+    let crystal=false;for(let g=0;g<20&&!crystal;g++){const x=p.x+rint(-2,2),y=p.y+rint(-2,2);if(!inMap(x,y))continue;const i=T(x,y);if(!S.map.feat[i]&&!S.map.rock[i]&&S.map.occ[i]==null&&!S.map.water[i]&&!S.map.mtn[i]){S.map.feat[i]=FEAT.crystal;crystal=true}}
+    chronicle(`A steam vent near ${nearestCommName(p.x,p.y)} erupted, filling the air with ash.${hit.length?` It damaged the ${namesList(hit,2)}.`:''}${crystal?' Fresh crystals grew where the steam settled.':''}`,'warn');toast('A vent erupted!','warn')}
+  else if(kind==='impact'){const near=Math.random()<0.55;const p=near?nearColonyTile(12,(x,y,i)=>!S.map.water[i]&&!S.map.mtn[i]):{x:rint(3,MAP_W-4),y:rint(3,MAP_H-4)};if(!p||isWater(p.x,p.y))return;
+    const r=rnd(1.2,2.1),hc=S.map.hc,W1=MAP_W+1;
+    for(let y=Math.floor(p.y-r*1.5);y<=p.y+r*1.5+1;y++)for(let x=Math.floor(p.x-r*1.5);x<=p.x+r*1.5+1;x++){if(x<0||y<0||x>MAP_W||y>MAP_H)continue;const d=Math.hypot(x-p.x-0.5,y-p.y-0.5)/r,k=y*W1+x;if(d<1)hc[k]=Math.round((hc[k]*0.3+0.04)*100)/100;else if(d<1.45)hc[k]=Math.round((hc[k]+0.32*Math.max(0,1-Math.abs(d-1.15)/0.3))*100)/100}
+    for(let y=Math.floor(p.y-r);y<=p.y+r;y++)for(let x=Math.floor(p.x-r);x<=p.x+r;x++){if(!inMap(x,y))continue;const i=T(x,y);if(Math.hypot(x-p.x,y-p.y)<=r&&S.map.occ[i]==null){S.map.rock[i]=0;if(S.map.feat[i]!==FEAT.ore)S.map.feat[i]=0}}
+    const ci=T(p.x,p.y);if(S.map.occ[ci]==null)S.map.feat[ci]=FEAT.ore;
+    const warned=forecastOn(),hit=hitBuildings(p.x+0.5,p.y+0.5,r+0.5,warned?0.4:0.8);if(!warned)for(const m of allM())if(!m.away&&Math.hypot(m.x-p.x,m.y-p.y)<r+1){m.vit=Math.max(0,m.vit-20);say(m,'Look out!')}
+    S.map.craters.push({x:p.x+0.5,y:p.y+0.5,r:r*0.5});S.stock.glass+=rint(6,14);UI.meteor={x:p.x+0.5,y:p.y+0.5,t0:performance.now()};UI.shake=performance.now()+1300;mapChanged();refreshBonuses();UI.mapVer++;
+    const seenIt=S.map.seen[ci];
+    chronicle((warned&&seenIt?'Storm Watchers saw it coming, and everyone took cover. ':'')+(seenIt?`A meteor struck near ${nearestCommName(p.x,p.y)}, leaving a fresh crater with an ore vein at its heart.${hit.length?` The blast damaged the ${namesList(hit,2)}.`:''}`:'A meteor streaked across the sky and fell somewhere beyond the explored land. Scouts might find what it left.'),'warn');toast('A meteor struck!','warn');sfx('storm')}
+}
+/* ---- deposits run out, and new ones are found ---- */
+function quarryReserve(b){let r=4000;for(let y=b.ty-1;y<=b.ty+1;y++)for(let x=b.tx-1;x<=b.tx+1;x++){if(!inMap(x,y))continue;const i=T(x,y);if(S.map.rock[i])r+=500;if(S.map.feat[i]===FEAT.ore)r+=4000}return r}
+function findDeposit(x,y){const i=T(x,y);if(S.map.feat[i]||S.map.rock[i]||S.map.water[i]||S.map.mtn[i]||S.map.occ[i]!=null)return;
+  const r=hash2(x,y,401),high=hAt(x+0.5,y+0.5)>0.55||[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>isMtn(x+dx,y+dy));
+  const f=high&&r<0.06?FEAT.ore:S.map.biome[i]===3&&r<0.04?FEAT.crystal:0;if(!f)return;S.map.feat[i]=f;
+  if(solNum()-(S.lastFind||-9)>=2){S.lastFind=solNum();chronicle(`Scouts found ${f===FEAT.ore?'an ore vein':'a cluster of rare crystals'} out past ${nearestCommName(x,y)}. ${FEAT_TIPS[f]}`,'joy')}}
+/* ---- water rights ---- */
+const disputeOf=cid=>(S.disputes||[]).find(d=>d.a===cid||d.b===cid);
+function settleDispute(d,how){S.disputes=S.disputes.filter(x=>x!==d);const A=C(d.a),Bc=C(d.b);if(!A||!Bc)return;commRelAdd(d.a,d.b,how==='envoys'?18:10);
+  chronicle(how==='council'?`The council ruled on ${d.what}: ${A.name} and ${Bc.name} will draw from it on alternate sols.`:how==='envoys'?`Your envoys brokered a water-sharing pact between ${A.name} and ${Bc.name}.`:`${A.name} and ${Bc.name} worked out how to share ${d.what} on their own.`,'law')}
+function waterSol(){
+  if(!S.disputes)S.disputes=[];
+  for(const d of [...S.disputes]){if(!C(d.a)||!C(d.b)){S.disputes=S.disputes.filter(x=>x!==d);continue}commRelAdd(d.a,d.b,-2);
+    const hall=builtOf('hall').some(working);if(hall&&Math.random()<0.15)settleDispute(d,'council');else if(Math.random()<0.05)settleDispute(d,'self')}
+  if(S.disputes.length>=3||Math.random()>0.3)return;
+  if(!(S.stock.water<GOODS.water.target*1.2||seasonIdx()===1||S.yearKind==='bitter')&&Math.random()>0.25)return;
+  const wells=allB().filter(b=>b.type==='well'&&b.built&&b.comm!=null);
+  for(const a of shuffle([...wells]))for(const b of wells){if(a.comm===b.comm||Math.hypot(a.tx-b.tx,a.ty-b.ty)>8||disputeOf(a.comm)||disputeOf(b.comm))continue;
+    let src=null;for(let y=Math.min(a.ty,b.ty)-2;y<=Math.max(a.ty,b.ty)+2&&!src;y++)for(let x=Math.min(a.tx,b.tx)-2;x<=Math.max(a.tx,b.tx)+2;x++){if(!inMap(x,y))continue;const i=T(x,y);
+      if((S.map.feat[i]===FEAT.ice||S.map.water[i]||polarAt(x,y)>0.3)&&Math.hypot(x-a.tx,y-a.ty)<=4&&Math.hypot(x-b.tx,y-b.ty)<=4){src={x,y,what:S.map.water[i]?`the lake between them`:polarAt(x,y)>0.3?'the edge of the polar ice':'the ice field between them'};break}}
+    if(!src)continue;const A=C(a.comm),Bc=C(b.comm);
+    S.disputes.push({id:S.nextId++,a:a.comm,b:b.comm,x:src.x,y:src.y,what:src.what,since:solNum()});commRelAdd(a.comm,b.comm,-8);
+    chronicle(`${A.name} and ${Bc.name} are quarreling over water rights to ${src.what}. Both sides' wells are drawing less while it lasts.`,'warn');return}
+}
+/* ---- wildlife ---- */
+const FAUNA={
+  skitter:{name:'Dune skitter',plural:'dune skitters',biomes:[4,0],speed:0.05,herd:'spores',desc:'Quick little six-legged grazers that skim across the dunes. Herded skitters shed spores as they graze.'},
+  moth:{name:'Glass-winged moth',plural:'glass-winged moths',biomes:[2,3],speed:0.03,fly:true,desc:'Moths with wings of living glass that glow softly at night. Martians love them as pets.'},
+  crawler:{name:'Ice crawler',plural:'ice crawlers',biomes:[1],speed:0.015,herd:'water',desc:'Slow, pale burrowers that tunnel through ice and frost. Herded crawlers dig up meltwater.'}};
+const faunaOf=id=>(S.fauna||[]).find(f=>f.id===id);
+function faunaGoal(f){const k=FAUNA[f.k];for(let g=0;g<12;g++){const x=f.hx+rnd(-3,3),y=f.hy+rnd(-3,3),tx=Math.floor(x),ty=Math.floor(y);if(!inMap(tx,ty))continue;if(!k.fly&&(isWater(tx,ty)||isMtn(tx,ty)))continue;f.gx=x;f.gy=y;return}f.gx=f.hx;f.gy=f.hy}
+function faunaTick(){
+  if(!S.fauna||S.tick%2)return;
+  for(const f of S.fauna){f.px=f.x;f.py=f.y;let gx=f.gx,gy=f.gy;
+    const o=f.tame&&M(f.tame);if(o&&!o.away){gx=o.x+0.45;gy=o.y+0.3}else if(f.herd&&C(f.herd)){const h=B(C(f.herd).hearth);if(h&&Math.hypot(f.hx-h.tx,f.hy-h.ty)>4){f.hx=h.tx+rnd(-3,3);f.hy=h.ty+rnd(-3,3)}}
+    const dx=gx-f.x,dy=gy-f.y,d=Math.hypot(dx,dy),sp=FAUNA[f.k].speed*2*(o?2.5:1);
+    if(d<0.15){if(!o)faunaGoal(f)}else{f.x+=dx/d*Math.min(sp,d);f.y+=dy/d*Math.min(sp,d)}}
+}
+function faunaSol(){
+  if(!S.fauna)S.fauna=[];if(!S.bestiary)S.bestiary={};
+  const cap=Math.round(MAP_W*MAP_H/180);
+  for(let t=0;t<3&&S.fauna.length<cap;t++){const k=pick(Object.keys(FAUNA)),K=FAUNA[k],x=rint(1,MAP_W-2),y=rint(1,MAP_H-2),i=T(x,y);
+    if(!K.biomes.includes(S.map.biome[i])||S.map.water[i]||S.map.mtn[i]||S.map.occ[i]!=null)continue;if(allB().some(b=>Math.hypot(b.tx-x,b.ty-y)<2.5))continue;
+    const n=rint(1,K.fly?2:3);for(let j=0;j<n;j++)S.fauna.push({id:S.nextId++,k,x:x+rnd(0,1),y:y+rnd(0,1),px:x,py:y,hx:x,hy:y,gx:x,gy:y,tame:null,herd:null})}
+  for(const f of S.fauna){const K=FAUNA[f.k],B0=S.bestiary[f.k]||(S.bestiary[f.k]={seen:0,studied:0});
+    if(f.tame&&!M(f.tame))f.tame=null;if(f.herd&&!C(f.herd))f.herd=null;
+    const i=T(clamp(Math.floor(f.x),0,MAP_W-1),clamp(Math.floor(f.y),0,MAP_H-1));
+    if(!B0.seen&&S.map.seen[i]){B0.seen=solNum();chronicle(`Martians spotted ${aan(K.name.toLowerCase())} for the first time. ${K.desc}`,'joy');toast(`New creature: ${K.name.toLowerCase()}`,'joy')}
+    if(f.herd&&K.herd){S.stock[K.herd]+=K.herd==='water'?3:0.6;continue}
+    if(f.tame){const o=M(f.tame);if(o)o.joy=Math.min(100,o.joy+3);continue}
+    const lodge=K.herd&&allB().find(b=>b.type==='lodge'&&b.built&&b.comm!=null&&Math.hypot(b.tx-f.x,b.ty-f.y)<8);
+    if(lodge&&S.fauna.filter(o=>o.herd===lodge.comm).length<allB().filter(b=>b.comm===lodge.comm&&b.type==='lodge'&&b.built).reduce((a,b)=>a+b.level*3,0)&&Math.random()<0.15){
+      f.herd=lodge.comm;const h=B(C(lodge.comm).hearth);if(h){f.hx=h.tx+rnd(-3,3);f.hy=h.ty+rnd(-3,3);faunaGoal(f)}if(Math.random()<0.5)chronicle(`Foragers from ${C(lodge.comm).name} rounded up ${aan(K.name.toLowerCase())} into their herd.`,'info');continue}
+    const m=allM().find(m=>!m.away&&isAdult(m)&&Math.hypot(m.x-f.x,m.y-f.y)<3.5);if(!m)continue;
+    if(['archivist','scout','cartographer'].includes(m.job)||Math.random()<0.15){S.lore+=3;B0.studied++;if(B0.studied<=3||Math.random()<0.1){memo(m,`Studied ${aan(K.name.toLowerCase())}`,1);learnLesson(m,'curious',`studying ${aan(K.name.toLowerCase())}`,0.2)}m.insight=Math.min(1,m.insight+0.03);if(B0.studied===1)chronicle(`${m.name} spent the sol studying ${aan(K.name.toLowerCase())}, the first martian to do so.`,'joy');if(Math.random()<0.3)say(m,'Fascinating little thing!')}
+    if(!m.pet&&m.attr.heart>50&&f.k!=='crawler'&&Math.hypot(m.x-f.x,m.y-f.y)<2.5&&Math.random()<0.08){f.tame=m.id;m.pet=f.id;memo(m,`Tamed ${aan(K.name.toLowerCase())}`,3);chronicle(`${m.name} tamed ${aan(K.name.toLowerCase())}. It follows them everywhere now.`,'joy');say(m,'Come here, little one!');continue}
+  }
+  for(const m of allM())if(m.pet&&!faunaOf(m.pet))m.pet=null;
+}
+function planetSol(){if(!S.yearKind)rollYear();smogSol();terraformSol();waterSol();faunaSol()}
 /* ================= other countries: borders, governments, diplomacy and war =================
    Other civilizations landed on Mars long ago. Each one runs itself: it grows, claims land,
    founds towns, picks a government that fits what its people believe, and makes friends,
@@ -2980,7 +3408,7 @@ function natSol(){
     else if(n.gov==='republic'&&(solNum()-n.since)>=YEAR_SOLS){const keep=Math.random()<0.4;if(!keep)n.ruler=genName();n.since=solNum();natSay2(n.id,-1,`${NatName(n)} held its election. ${keep?`First Speaker ${n.ruler} won again.`:`${n.ruler} is the new First Speaker.`}`,'law')}
     else if(solNum()-n.since>40&&Math.random()<0.03){const heir=n.gov==='monarchy';const old=n.ruler;n.ruler=heir?(old.endsWith(' the Second')?old.replace(' the Second',' the Third'):old+' the Second'):genName();n.since=solNum();
       natSay2(n.id,-1,`${GOVS[n.gov].ruler} ${old} of ${n.place} passed on. ${heir?`The crown went to ${n.ruler}.`:`${n.ruler} now leads.`}`,'law')}
-    if(n.pact){const inc=Math.round(n.pop*0.6*G.trade);S.treasury+=inc;led('pacts',inc);nRelAdd(n.id,HOME,0.3);if(nRel(n.id,HOME)<0||atWar(n.id,HOME)){n.pact=false;natSay2(n.id,HOME,`${NatName(n)} ended its trade pact with ${S.colony}.`,'warn')}}
+    if(n.pact){const inc=Math.round(n.pop*0.6*G.trade*(S.space&&S.space.sats&&S.space.sats.relay?1.25:1));S.treasury+=inc;led('pacts',inc);nRelAdd(n.id,HOME,0.3);if(nRel(n.id,HOME)<0||atWar(n.id,HOME)){n.pact=false;natSay2(n.id,HOME,`${NatName(n)} ended its trade pact with ${S.colony}.`,'warn')}}
   }
   // who borders whom
   const border={};const own=i=>g[i]?g[i]:terr[i]!=null?'h':null;
@@ -2993,7 +3421,9 @@ function natSol(){
     if(atWar(a,b))d-=0.3;S.natRel[k]=clamp((S.natRel[k]||0)*0.99+d,-100,100);
     // war breaks out between bitter neighbors
     const near=bd>0||(a!==HOME&&N_(a).towns[0]&&N_(b).towns[0]&&Math.hypot(N_(a).towns[0].x-N_(b).towns[0].x,N_(a).towns[0].y-N_(b).towns[0].y)<22);
-    if(!atWar(a,b)&&near&&nRel(a,b)<-45){const ag=a===HOME?GOVS[gv(b)].agg:Math.max(GOVS[gv(a)].agg,GOVS[gv(b)].agg);
+    {const sa=a===HOME?null:N_(a).school,sb=N_(b).school;if(sa&&sb)S.natRel[k]=clamp(S.natRel[k]+(sa===sb?0.3:AX.some(q=>Sch(sa)&&Sch(sb)&&Sch(sa).tenets[q]&&Sch(sb).tenets[q]&&Sch(sa).tenets[q]!==Sch(sb).tenets[q])?-0.3:0),-100,100);
+     if(a===HOME&&peaceShare()>0.3)S.natRel[k]=clamp(S.natRel[k]+0.2,-100,100)}
+    if(!atWar(a,b)&&near&&nRel(a,b)<-45){const ag=(a===HOME?GOVS[gv(b)].agg*schoolAgg(b):Math.max(GOVS[gv(a)].agg*schoolAgg(a),GOVS[gv(b)].agg*schoolAgg(b)));
       if((a!==HOME||N_(b).met)&&Math.random()<0.05*ag){const att=a===HOME?b:(GOVS[gv(a)].agg>=GOVS[gv(b)].agg?a:b),def=att===a?b:a;
         S.wars.push({a:att,b:def,since:solNum(),landA:a===HOME?0:(land[att]||0),landB:def===HOME?0:(land[def]||0)});
         natSay2(att,def,`War! ${SideName(att)} has declared war on ${sideName(def)}.`,'warn');if(def===HOME){toast(`${SideName(att)} declared war on you.`,'warn');sfx('storm')}}}}
@@ -3019,7 +3449,7 @@ function warWithHome(w,eid,weAttack){
     else if(r<0.8){const bs=allB().filter(b=>b.built&&!b.damaged&&!b.buried&&!BUILD[b.type].wonder&&b.type!=='hearthstone').sort((a,b)=>Math.hypot(a.tx-cap.x,a.ty-cap.y)-Math.hypot(b.tx-cap.x,b.ty-cap.y));
       const b=bs[0];if(b){b.damaged=true;b.repair=0;b.repairNeed=Math.round(BUILD[b.type].work*0.3);chronicle(`Raiders from ${natName(e)} wrecked the ${bName(b)}.`,'warn')}}
     else{for(const k of ['lichen','water']){S.stock[k]=Math.max(0,S.stock[k]*0.8)}chronicle(`Raiders from ${natName(e)} looted the stores.`,'warn')}
-    joyWhere(()=>true,-2)}
+    joyWhere(()=>true,-2);for(const m of shuffle(allM().filter(isAdult)).slice(0,6)){memo(m,`Lived through a raid from ${e.place}`,-2);learnLesson(m,'peaceable',`living through a raid from ${e.place}`,0.3)}}
   else if(hs>es){const g=S.natGrid,terr=terrGrid();let k=0;
     for(let i=0;i<g.length&&k<(weAttack?4:2);i++){if(g[i]!==eid)continue;const x=i%MAP_W,y=(i/MAP_W)|0;if([[1,0],[-1,0],[0,1],[0,-1],[2,0],[0,2],[-2,0],[0,-2]].some(([dx,dy])=>inMap(x+dx,y+dy)&&terr[T(x+dx,y+dy)]!=null)){natTake(i,0);k++}}
     if(weAttack){const loot=Math.round(Math.min(300,e.wealth*0.08));e.wealth-=loot;S.treasury+=loot;led('plunder',loot)}
@@ -3036,6 +3466,7 @@ function natAct(kind,id){
     S.treasury-=500;led('diplomacy',-500);n.pact=true;nRelAdd(id,HOME,8);chronicle(`${S.colony} and ${natName(n)} signed a trade pact. Caravans will run between them every sol.`,'joy')}
   else if(kind==='peace'){const w=S.wars.find(w=>(w.a===id&&w.b===HOME)||(w.b===id&&w.a===HOME));if(!w)return;const t=Math.max(300,Math.round(S.treasury*0.08));if(S.treasury<t){toast(`They want ◈ ${fmt(t)} in tribute.`,'warn');return}
     S.treasury-=t;led('tribute',-t);n.wealth+=t;S.wars=S.wars.filter(x=>x!==w);S.natRel[relKeyN(id,HOME)]=-10;chronicle(`${S.colony} paid ◈ ${fmt(t)} in tribute, and ${natName(n)} agreed to peace.`,'law')}
+  else if(kind==='spy')sendSpies(n);
   else if(kind==='war'){if(atWar(id,HOME))return;S.wars.push({a:HOME,b:id,since:solNum(),landA:0,landB:n.land});n.pact=false;nRelAdd(id,HOME,-30);chronicle(`${S.colony} declared war on ${natName(n)}.`,'warn');sfx('storm')}
 }
 /* ================= trust: how communities and parties feel about you ================= */
@@ -3661,6 +4092,19 @@ const MODELS={
   },
 };
 Object.assign(MODELS,{
+  university(x,y,s,b,now){const cx=x+1,cy=y+1,fc={stone:'#E8A2A0',life:'#AFCB8B',song:'#F2B866',hum:'#93C6E6',sky:'#C9B2DE'}[b.field||'song'];
+    box(x+0.1,y+0.1,0,1.8,1.8,0.12,'#A59AA0','#B5AAB0');box(x+0.3,y+0.3,0.12,1.4,1.25,0.85,'#D9C2A8','#E9D5B9');
+    for(const px of [0.42,0.78,1.14,1.5])cyl(x+px,y+1.68,0.12,0.06,0.78,'#F2E2CE',null,8);
+    box(x+0.3,y+1.55,0.9,1.4,0.26,0.1,'#E9D5B9','#F2E2CE');dome(cx,cy-0.05,0.97,0.44,0.44,fc);line3([cx,cy-0.05,1.41],[cx,cy-0.05,1.62],'#E9D5B9',0.02);
+    if(L.night>0.3)glow3(cx,cy+0.4,0.5,0.9,`rgba(255,214,150,${0.3*L.night})`)},
+  mast(x,y,s,b,now){const cx=x+0.5,cy=y+0.5;box(x+0.3,y+0.3,0,0.4,0.4,0.15,'#A59AA0','#B5AAB0');cyl(cx,cy,0.15,0.05,1.7,'#C9B2A0',null,6);
+    const a=REDUCED?0:now/300;for(let k=0;k<3;k++){const an=a+k*2.09;sphere(cx+Math.cos(an)*0.2,cy+Math.sin(an)*0.2,1.78,0.06,'#F2B866')}
+    const [u,v]=P(cx,cy,1.45),w=REDUCED?0:Math.sin(now/500)*2;c.fillStyle='#EE8A74';c.beginPath();c.moveTo(u,v);c.lineTo(u+CAM.a*0.4,v+2+w);c.lineTo(u+CAM.a*0.4,v+CAM.a*0.12+w);c.lineTo(u,v+CAM.a*0.16);c.closePath();c.fill();
+    if(S.stormIn)glow3(cx,cy,1.85,0.5,'rgba(238,138,116,0.85)')},
+  launchpad(x,y,s,b,now){const cx=x+1,cy=y+1;box(x+0.1,y+0.1,0,1.8,1.8,0.18,'#8E8792','#A59AA0');
+    for(const [ox,oy] of [[0.35,0.35],[1.65,0.35],[0.35,1.65],[1.65,1.65]])box(x+ox-0.05,y+oy-0.05,0.18,0.1,0.1,0.06,'#EE8A74','#F2B866');
+    box(x+0.22,y+0.22,0.18,0.24,0.24,1.9,'#C9A78A','#D9B79A');for(const z of [0.6,1.1,1.6])line3([x+0.46,y+0.34,z],[cx-0.16,cy,z],'#C9A78A',0.025);
+    if(S.space&&S.space.prep)rocket(cx,cy,0.18,Math.min(1,0.25+S.space.prep.done/S.space.prep.need))},
   foundersgarden(x,y,s,b,now){const cx=x+1,cy=y+1;
     for(const [px,py,sx,sy] of [[x+0.06,y+0.06,1.88,0.1],[x+0.06,y+1.84,1.88,0.1],[x+0.06,y+0.06,0.1,1.88],[x+1.84,y+0.06,0.1,1.88]])box(px,py,0,sx,sy,0.14,'#9A8EA6','#B4A8C0');
     [[0.45,0.45,'#E8A2A0'],[1.55,0.45,'#F2B866'],[0.45,1.55,'#93C6E6'],[1.55,1.55,'#C9B2DE'],[1.0,0.35,'#AFCB8B'],[0.35,1.0,'#E8A2A0'],[1.65,1.0,'#F2B866'],[1.0,1.65,'#93C6E6']].forEach(([ox,oy,cl])=>{dome(x+ox,y+oy,0,0.16,0.12,'#7FA05E');sphere(x+ox,y+oy,0.14,0.06,cl)});
@@ -3832,6 +4276,8 @@ function drawBackdrop(t,now){
   let g=c.createLinearGradient(0,0,0,hz);g.addColorStop(0,rgba(sk[0]));g.addColorStop(0.55,rgba(sk[1]));g.addColorStop(1,rgba(sk[2]));
   c.fillStyle=g;c.fillRect(0,0,W,hz+1);
   if(n>0.05){c.fillStyle='#FFF4E0';for(const s of STARS){const tw=REDUCED?1:0.6+0.4*Math.sin(now/700+s.p);c.globalAlpha=n*tw*0.9;c.beginPath();c.arc(s.x*W,s.y*hz*0.92,s.r,0,Math.PI*2);c.fill()}c.globalAlpha=1}
+  if(S.space&&S.space.sats){Object.keys(S.space.sats).forEach((k,j)=>{const q=((now/45000)+j*0.37)%1,sx=W*q,sy=hz*(0.16+0.13*j)-Math.sin(q*Math.PI)*hz*0.05;
+    c.globalAlpha=0.55+0.45*n;c.fillStyle=Math.floor(now/600+j)%2?'#FFFFFF':'#F2B866';c.fillRect(sx-1.5,sy-1.5,3,3);c.globalAlpha=1})}
   const p=(t-0.07)/0.65;
   if(p>0&&p<1){const az=-Math.PI/4+p*Math.PI,sx=W*(0.5+0.42*(Math.cos(az)-Math.sin(az))/Math.SQRT2),sy=hz-Math.sin(Math.PI*p)*hz*0.82+6,low=clamp(1-Math.sin(Math.PI*p)*2.4,0,1);
     glowS(sx,sy,140+160*low,`rgba(150,205,250,${0.8*low})`);glowS(sx,sy,46,`rgba(255,240,210,${0.45*(1-low*0.5)})`);
@@ -3859,11 +4305,13 @@ function drawGround(){
     const i=T(x,y);let k=1+tone(i);if(!onScreen(x+0.5,y+0.5,1.5))continue;
     pathPts([PG(x,y),PG(x+1,y),PG(x+1,y+1),PG(x,y+1)]);
     if(!S.map.seen[i]){c.fillStyle=rgba(fogC.map(v=>v*(0.85+tone(i*3)*2)));c.fill();continue}
-    const wt=S.map.water[i],mt=S.map.mtn[i];if(wt)k=1+tone(i)*0.25;const base=wt?(wt===1&&win?ICE_C:wt===2?SEA_C:LAKE_C):mt?MTN_C:col(BIOMES[S.map.biome[i]].ground);
+    const wt=S.map.water[i],mt=S.map.mtn[i];if(wt)k=1+tone(i)*0.25;let base=wt?(wt===1&&win?ICE_C:wt===2?SEA_C:LAKE_C):mt?MTN_C:col(BIOMES[S.map.biome[i]].ground);
+    {const pa=polarAt(x,y);if(pa>0)base=wt?(pa>0.4?ICE_C:base):mixA(base,ICE_C,pa*(mt?0.6:0.85))}
     c.fillStyle=shade([base[0]*k,base[1]*k,base[2]*k],wt?[0,0,1]:tileN(x,y));c.fill();if(wt){c.strokeStyle=c.fillStyle;c.lineWidth=1;c.stroke()}
     if(wt&&!(wt===1&&win)&&hash2(x,y,11)<0.35){const p=PG(x+0.3+0.4*hash2(x,y,12),y+0.3+0.4*hash2(x,y,13));c.strokeStyle=`rgba(220,240,255,${0.18+0.12*(1-L.night)})`;c.lineWidth=Math.max(1,CAM.a*0.04);c.beginPath();c.moveTo(p[0]-CAM.a*0.18,p[1]);c.lineTo(p[0]+CAM.a*0.18,p[1]);c.stroke()}
     const cm=terr[i];if(cm!=null&&C(cm)){c.fillStyle=rgba(col(C(cm).color),0.07);c.fill()}
     const nt=S.natGrid&&S.natGrid[i],nn=nt&&N_(nt);if(nn){c.fillStyle=rgba(col(nn.color),wt?0.06:0.14);c.fill()}
+    const sg=S.map.smog?S.map.smog[i]:0;if(sg>0.12){c.fillStyle=`rgba(92,80,70,${Math.min(0.42,sg*0.18)})`;c.fill()}
   }
   for(let y=R.y0;y<R.y1;y++)for(let x=R.x0;x<R.x1;x++){
     const i=T(x,y);if(!S.map.seen[i]||!onScreen(x+0.5,y+0.5,1.5))continue;
@@ -3882,6 +4330,8 @@ function drawGround(){
   for(let y=R.y0;y<R.y1;y++)for(let x=R.x0;x<R.x1;x++){
     const i=T(x,y),f=S.map.feat[i];if(!f||!S.map.seen[i]||!onScreen(x+0.5,y+0.5,1.5))continue;
     const h=hash2(x,y,5);
+    if(f===7){for(let k=0;k<4;k++){const [u,v]=PG(x+0.22+0.56*hash2(x,y,k+20),y+0.22+0.56*hash2(x,y,k+30)),r=CAM.a*(0.07+0.04*hash2(x,y,k+40));
+      c.fillStyle=shade('#5A5160',[0,0,1]);c.beginPath();c.ellipse(u,v,r*1.7,r,0,0,Math.PI*2);c.fill();c.fillStyle=shade('#E0A866',[0.3,0.3,0.9]);c.beginPath();c.ellipse(u-r*0.35,v-r*0.25,r*0.7,r*0.3,0,0,Math.PI*2);c.fill()}continue}
     if(f===1){const pts=[];for(let k=0;k<7;k++){const a=k/7*Math.PI*2,r=0.3+0.12*hash2(x,y,k);pts.push(PG(x+0.5+r*Math.cos(a),y+0.5+r*Math.sin(a)))}
       pathPts(pts);c.fillStyle=shade('#CFE8F2',[0,0,1],0.9);c.fill();c.strokeStyle=shade('#F4FBFF',[0,0,1],0.7);c.lineWidth=Math.max(1,CAM.a*0.03);
       const p0=PG(x+0.35,y+0.4),p1=PG(x+0.6,y+0.55);c.beginPath();c.moveTo(p0[0],p0[1]);c.lineTo(p1[0],p1[1]);c.stroke()}
@@ -4015,6 +4465,7 @@ function drawScene(alpha,now){
   {const cover=UI.phone&&(UI.sheet||(UI.sel&&!$('#inspector').hidden));const tx=cover&&UI.side?-UI.cw*0.24:0,ty=cover&&!UI.side?-UI.ch*0.3:0;
    CAM.sx=Math.abs(tx-(CAM.sx||0))<1?tx:(CAM.sx||0)+(tx-(CAM.sx||0))*0.2;CAM.sy=Math.abs(ty-(CAM.sy||0))<1?ty:(CAM.sy||0)+(ty-(CAM.sy||0))*0.2}
   updateCam();
+  if(UI.shake&&now<UI.shake){const k=Math.min(1,(UI.shake-now)/900);CAM.ox+=rnd(-5,5)*k;CAM.oy+=rnd(-4,4)*k}
   drawBackdrop(t,now);
   groundLayer(now);
   if(!REDUCED&&S.speed>0&&!UI.modalPause)tickDevils();
@@ -4043,6 +4494,7 @@ function drawScene(alpha,now){
     else if(f===2&&L.night>0.35&&!REDUCED&&(x*7+y)%3===0)items.push({d:x+y+1,z:gz,f:()=>{for(let k=0;k<2;k++){const a=now/900+k*3+x,[u,v]=P(x+0.5+0.3*Math.cos(a),y+0.5+0.3*Math.sin(a),0.3+0.1*Math.sin(now/300+k));glowS(u,v,CAM.a*0.18,`rgba(230,240,180,${0.5*L.night})`)}}});
   }
   for(const d of DEVILS)if(S.map.seen[T(Math.floor(d.x),Math.floor(d.y))]&&onScreen(d.x,d.y))items.push({d:d.x+d.y,z:hAt(d.x,d.y),f:()=>drawDevil(d,now)});
+  for(const f of S.fauna||[]){const fx=lerp(f.px??f.x,f.x,alpha),fy=lerp(f.py??f.y,f.y,alpha),fi=T(clamp(Math.floor(fx),0,MAP_W-1),clamp(Math.floor(fy),0,MAP_H-1));if(!S.map.seen[fi]||!onScreen(fx,fy,1))continue;items.push({d:fx+fy,z:hAt(fx,fy),f:()=>drawCritter(f,fx,fy,now)})}
   for(const n of allN())for(const t of n.towns){if(!S.map.seen[T(t.x,t.y)]||!onScreen(t.x+0.5,t.y+0.5,3))continue;items.push({d:t.x+t.y+1.2,z:hAt(t.x+0.5,t.y+0.5),f:()=>drawTown(n,t,now)})}
   for(const w of S.wars)for(const i of w.front||[]){const x=i%MAP_W,y=(i/MAP_W)|0;if(!S.map.seen[i]||!onScreen(x+0.5,y+0.5,2))continue;items.push({d:x+y+1,z:hAt(x+0.5,y+0.5),f:()=>{smoke(x+0.5,y+0.5,0.1,now,1.6);const [u,v]=P(x+0.5,y+0.5,0.05);glowS(u,v,CAM.a*0.4,`rgba(238,138,116,${0.25+0.2*L.night})`)}})}
   for(const mo of S.memorials||[])if(onScreen(mo.x+0.5,mo.y+0.5,2))items.push({d:mo.x+mo.y+1,z:hAt(mo.x+0.5,mo.y+0.5),f:()=>{const cx=mo.x+0.5,cy=mo.y+0.5;
@@ -4080,6 +4532,17 @@ function drawScene(alpha,now){
   if(seasonIdx()===3&&!REDUCED){const k=0.35+0.65*L.night;c.fillStyle=`rgba(240,244,255,${0.6*k})`;
     for(let i=0,n=Math.round(70*GFX.parts);i<n;i++){const sx=(i*137.5+Math.sin(now/1700+i)*30)%W,sy=((i*71+now*(0.012+(i%5)*0.004))%(H+20))-10;c.beginPath();c.arc(sx,sy,1+(i%3)*0.5,0,Math.PI*2);c.fill()}}
   if(S.ev.festival>0&&L.night>0.2&&!REDUCED){for(let i=0;i<12;i++){const fx=((i*131+now*0.02)%W),fy=H*0.12+Math.sin(now/900+i)*H*0.05+i*8;glowS(fx,fy,10,`rgba(255,200,120,${0.5*L.night})`);c.fillStyle=`rgba(255,225,170,${L.night})`;c.beginPath();c.arc(fx,fy,2,0,Math.PI*2);c.fill()}}
+  if(UI.meteor){const mt=UI.meteor,q=(now-mt.t0)/900;if(q>2.2||q<0)UI.meteor=null;else{GZ=hAt(mt.x,mt.y);const [u,v]=P(mt.x,mt.y);GZ=0;
+    if(q<1){const sx=u+W*0.45*(1-q),sy=v-H*0.9*(1-q),g=c.createLinearGradient(sx+W*0.12,sy-H*0.24,sx,sy);g.addColorStop(0,'rgba(255,220,160,0)');g.addColorStop(1,'rgba(255,240,210,0.95)');
+      c.strokeStyle=g;c.lineWidth=4;c.beginPath();c.moveTo(sx+W*0.12,sy-H*0.24);c.lineTo(sx,sy);c.stroke();glowS(sx,sy,18,'rgba(255,230,180,0.9)')}
+    else{const k=1-(q-1)/1.2;glowS(u,v,CAM.a*3*(1.2-k*0.5),`rgba(255,200,140,${0.75*k})`)}}}
+  if(UI.launch){const L0=UI.launch,q=(now-L0.t0)/1000;if(q>4.5||q<0)UI.launch=null;else{GZ=plotHeights(Math.floor(L0.x-1),Math.floor(L0.y-1),2)[1];
+    if(L0.ok){const z=0.18+q*q*1.7;for(let k=5;k>=0;k--){const zz=Math.max(0.2,z-0.3-k*0.4),[su,sv]=P(L0.x+Math.sin(k*1.7)*0.08*k,L0.y,zz);c.fillStyle=`rgba(230,220,215,${0.38*(1-k/6)})`;c.beginPath();c.arc(su,sv,CAM.a*(0.18+k*0.09),0,Math.PI*2);c.fill()}
+      const [u,v]=P(L0.x,L0.y,z);if(v>-80){glowS(u,v+CAM.c*0.25,CAM.a*0.9,'rgba(255,200,120,0.85)');rocket(L0.x,L0.y,z,1)}}
+    else if(q<0.9){const z=0.18+q*q;rocket(L0.x,L0.y,z,1);const [u,v]=P(L0.x,L0.y,z);glowS(u,v+CAM.c*0.2,CAM.a*0.7,'rgba(255,200,120,0.8)')}
+    else{const [u,v]=P(L0.x,L0.y,1.0),k=Math.max(0,1-(q-0.9)/2.4);glowS(u,v,CAM.a*2.8*(1.3-k*0.3),`rgba(255,170,90,${0.85*k})`);
+      for(let j=0;j<6;j++){c.fillStyle=`rgba(90,80,80,${0.45*k})`;c.beginPath();c.arc(u+Math.cos(j*1.3)*CAM.a*q*0.6,v-CAM.a*q*0.4+Math.sin(j*2.1)*CAM.a*0.3,CAM.a*0.32,0,Math.PI*2);c.fill()}}
+    GZ=0}}
   UI.bhits=bs.map(b=>{const d=BUILD[b.type],h=b.built?d.h:0.3,pts=[],z0=bz.get(b.id);for(const [px,py] of [[b.tx,b.ty],[b.tx+b.size,b.ty],[b.tx+b.size,b.ty+b.size],[b.tx,b.ty+b.size]]){pts.push(P(px,py,z0));pts.push(P(px,py,z0+h))}return{id:b.id,poly:hull(pts),d:b.tx+b.ty+b.size}}).sort((a,b)=>b.d-a.d);
   UI.hits.sort((a,b)=>b.d-a.d);
   if(UI.mouse&&UI.hover&&!(UI.drag&&UI.drag.moved)){
@@ -4103,6 +4566,9 @@ function shortThought(m){
   if(m.bond&&M(m.bond)&&Math.random()<0.2)return`Thinking of ${M(m.bond).name}.`;
   if(m.dream&&Math.random()<0.15){const t=`Someday I'll ${DREAMS[m.dream.type].text(m.dream.arg)}.`;return t.length<44?t:'I have a dream, you know.'}
   if(Math.random()<0.25){const se=seasonIdx();return pick(se===3?['Snow again!','Winter is long.']:se===0?['Spring at last!','Smell the spores!']:se===1?['Warm night ahead.','Storm season, eek.']:['Harvest time!','Nights are getting cold.'])}
+  if(Sch(m.school)&&Math.random()<0.1){const s=Sch(m.school),q=AX.find(x=>s.tenets[x]);if(q){const t=AXT[q][s.tenets[q]>0?0:1];return t.length<40?cap1(t)+'!':`As ${s.fname} says...`}}
+  if(m.aim&&Math.random()<0.1)return pick(['Practice, practice!','One day I will be good at this.']);
+  if(m.mem&&m.mem[0]&&m.mem[0].who&&M(m.mem[0].who)&&Math.random()<0.08)return m.mem[0].w<0?`I won't forget, ${M(m.mem[0].who).name}.`:`Thinking of ${M(m.mem[0].who).name}.`;
   if(m.joy>72&&Math.random()<0.5)return pick(['What a lovely sol.','I love it here.','Look at that sky!']);
   if(m.joy<35)return pick(['Things should be better.','Not my best sol.']);
   return pick(SAY[m.state]||SAY.wandering);
@@ -4124,6 +4590,20 @@ function drawBubbles(now){
     c.beginPath();c.moveTo(h.x-5,by+hh-1);c.lineTo(h.x,by+hh+7);c.lineTo(h.x+5,by+hh-1);c.closePath();c.fill();
     c.fillStyle='#2A2136';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,h.x,by+hh/2+1);c.textBaseline='alphabetic';c.globalAlpha=1;
   }
+}
+function rocket(cx,cy,z,f){const h=1.6*Math.max(0.25,f);cyl(cx,cy,z,0.16,h,'#F2E2CE','#E9D5B9',10);cone(cx,cy,z+h,0.16,0.36,'#EE8A74',10);
+  for(const a of [0.4,2.5,4.6])box(cx+Math.cos(a)*0.17-0.04,cy+Math.sin(a)*0.17-0.04,z,0.08,0.08,0.3,'#EE8A74','#F2A890')}
+// native creatures
+function drawCritter(f,x,y,now){const t=now/1000+f.id*0.37;
+  if(f.k==='skitter'){const [u,v]=P(x,y,0.08),r=CAM.a*0.22;c.strokeStyle=shade('#7A5A3E',[0,0,1]);c.lineWidth=Math.max(1,CAM.a*0.025);
+    for(let k=-1;k<=1;k++){const w=REDUCED?0:Math.sin(t*14+k)*r*0.25;c.beginPath();c.moveTo(u+k*r*0.5,v);c.lineTo(u+k*r*0.7-r*0.6,v+r*0.5+w);c.moveTo(u+k*r*0.5,v);c.lineTo(u+k*r*0.7+r*0.6,v+r*0.5-w);c.stroke()}
+    c.fillStyle=shade('#D9B27A',[0.2,0.2,1]);c.beginPath();c.ellipse(u,v-r*0.2,r,r*0.55,0,0,Math.PI*2);c.fill();c.fillStyle=shade('#B48A58',[0,0,1]);c.beginPath();c.ellipse(u,v-r*0.4,r*0.7,r*0.3,0,0,Math.PI*2);c.fill();
+    c.fillStyle='#2A2136';c.beginPath();c.arc(u+r*0.7,v-r*0.3,Math.max(0.8,r*0.12),0,Math.PI*2);c.fill()}
+  else if(f.k==='moth'){const hz=0.5+0.15*Math.sin(t*1.7),[u,v]=P(x,y,hz),r=CAM.a*0.24,fl=REDUCED?0.7:0.35+0.65*Math.abs(Math.sin(t*9));
+    if(L.night>0.25)glowS(u,v,r*2.4,`rgba(150,230,255,${0.35*L.night})`);c.fillStyle=`rgba(200,240,255,${0.55+0.3*L.night})`;
+    for(const s of [-1,1]){c.beginPath();c.ellipse(u+s*r*0.55,v,r*0.6,r*0.42*fl,s*0.4,0,Math.PI*2);c.fill()}c.fillStyle='#5A4A6A';c.beginPath();c.ellipse(u,v,r*0.14,r*0.32,0,0,Math.PI*2);c.fill()}
+  else{const r=CAM.a*0.17;for(let k=2;k>=0;k--){const w=REDUCED?0:Math.sin(t*3+k)*0.03,[u,v]=P(x-0.1*k+w,y-0.06*k,0.04);c.fillStyle=shade(k?'#DDE6EC':'#F4F8FA',[0.2,0.2,1]);c.beginPath();c.ellipse(u,v,r*(1-k*0.15),r*0.7*(1-k*0.15),0,0,Math.PI*2);c.fill()}
+    const [u,v]=P(x,y,0.06);c.fillStyle='#4A6A8A';c.beginPath();c.arc(u+r*0.45,v-r*0.1,Math.max(0.8,r*0.15),0,Math.PI*2);c.fill()}
 }
 // a foreign town: a cluster of houses roofed in the country's color, a tower for the capital
 function drawTown(n,t,now){const cx=t.x+0.5,cy=t.y+0.5,k=t.size+(t.cap?1:0);
@@ -4341,6 +4821,12 @@ function thought(m){
   if(m.state==='celebrating')return pick2(m,['Dancing with everyone at the Hearthstone.','This festival is the best part of the season.']);
   if(S.strikes[m.job])return'Not working until the wages are fair.';
   if(m.moving&&C(m.moving))return`Packing up for ${C(m.moving).name}. A fresh start.`;
+  {const k=(solNum()+m.id)%5,top=m.mem&&m.mem[0];
+   if(top&&top.w<=-3&&solNum()-top.s<5)return`Can't stop thinking about it: ${top.t[0].toLowerCase()+top.t.slice(1)}.`;
+   if(m.aim&&JOBS[m.aim.job]&&k<2)return`Practicing every evening to become ${aan(JOBS[m.aim.job].name)}.`;
+   if(m.life==='adrift'&&k<3)return'Wondering what any of this is really for.';
+   if(Sch(m.school)&&k===3){const s=Sch(m.school),q=AX.find(x=>s.tenets[x]);if(q)return`${s.fname} was right: ${AXT[q][s.tenets[q]>0?0:1]}.`}
+   if(top&&top.w>=3&&k===4&&solNum()-top.s<10)return`Still smiling about it: ${top.t[0].toLowerCase()+top.t.slice(1)}.`}
   if(m.rv&&m.rv.length&&m.joy<50){const r=M(m.rv[0]);if(r)return`Can't stand ${r.name}.`}
   if(m.insight>0.8)return'Something is taking shape. An idea, almost.';
   if(m.council)return'Takes the council seat very seriously.';
@@ -4385,7 +4871,7 @@ function renderTabs(){
     document.body.classList.toggle('sheet-open',!!UI.sheet);$('#sheetTitle').textContent=TAB_NAMES[UI.tab]||'';
   }else document.body.classList.remove('sheet-open');
   document.querySelectorAll('.tabs button').forEach(b=>{const on=b.dataset.tab===UI.tab;b.setAttribute('aria-selected',String(on));
-    const base={nations:'Nations',build:'Build',martians:'Martians',communities:'Communities',market:'Market',projects:'Projects',ideas:'Ideas',laws:'Laws',tasks:'Tasks'}[b.dataset.tab];
+    const base={minds:'Minds',nature:'Nature',nations:'Nations',build:'Build',martians:'Martians',communities:'Communities',market:'Market',projects:'Projects',ideas:'Ideas',laws:'Laws',tasks:'Tasks'}[b.dataset.tab];
     b.innerHTML=base+(alerts[b.dataset.tab]?'<span class="dot" aria-label="needs attention"></span>':'')});
 }
 function renderChronicle(){
@@ -4394,8 +4880,8 @@ function renderChronicle(){
 }
 
 /* ================= sections: tabs inside panels ================= */
-const TAB_NAMES={nations:'Nations',build:'Build',martians:'Martians',communities:'Communities',market:'Market',projects:'Projects',ideas:'Ideas',laws:'Laws',tasks:'Tasks',news:'News',more:'More'};
-const MORE_TABS=['communities','nations','market','projects','ideas','laws'];
+const TAB_NAMES={minds:'Minds',nature:'Nature',nations:'Nations',build:'Build',martians:'Martians',communities:'Communities',market:'Market',projects:'Projects',ideas:'Ideas',laws:'Laws',tasks:'Tasks',news:'News',more:'More'};
+const MORE_TABS=['communities','minds','nature','nations','market','projects','ideas','laws'];
 const SEC_GROUPS={tasks:{'Decisions waiting':'To do','Requests':'To do','Building sites':'To do','Budding':'To do','Expeditions':'To do','Milestones':'Goals','Past years':'Goals','Growth':'Settings','Paths and roads':'Settings','Settings':'Settings','Your save':'Settings'}};
 const secName=t=>t.replace(/\s*\(\d+\)\s*$/,'').trim();
 function secAlerts(tab){
@@ -4437,15 +4923,58 @@ function renderMore(){
   return`<h2>More</h2><div class="moregrid">
     ${card('communities','🏘️',`${allC().length} communit${allC().length===1?'y':'ies'}`)}${card('market','◈',`◈ ${fmt(S.treasury)} in the treasury`)}
     ${card('projects','🔺','Great works and endowments')}${card('ideas','💡',ideas?`${ideas} idea${ideas>1?'s':''} to develop`:'Research and inventions')}
-    ${card('nations','🗺️',warsOf(HOME).length?'At war!':`${metN().length} of ${allN().length} met`)}${card('laws','⚖️','Council, parties and laws')}${card('tasks','📋','Requests, goals and settings')}</div>
+    ${card('minds','🧠',(()=>{const s=Object.values(S.schools||{}).filter(s=>!s.native).length;return s?`${s} school${s>1?'s':''} of thought`:'Memories, goals and beliefs'})())}${card('nature','🌿',S.movement?'A clean air movement':(S.disputes||[]).length?'Water quarrels':`${yearKind().name.replace(/^a /,'')}, ${season().name.toLowerCase()}`)}${card('nations','🗺️',warsOf(HOME).length?'At war!':`${metN().length} of ${allN().length} met`)}${card('laws','⚖️','Council, parties and laws')}${card('tasks','📋','Requests, goals and settings')}</div>
     ${gfxControl()}
     <label class="lbl">Sound</label><div class="seg" role="group" aria-label="Sound">${[['on','Music and effects'],['fx','Effects only'],['off','Off']].map(([k,l])=>`<button data-act="soundset" data-k="${k}" aria-pressed="${snd===k}">${l}</button>`).join('')}</div>
     <div class="actions"><button class="btn soft" data-act="savenow">Save now</button></div>
     <p class="d" style="margin-top:8px">The colony also saves itself every sol.</p>`;
 }
-function tabAlerts(){return{nations:warsOf(HOME).length>0,laws:S.cases.length>0||Object.keys(S.strikes).length>0,tasks:sitesList().some(b=>b.buried||b.damaged)||S.petitions.length>0||S.dilemmas.length>0,ideas:!S.research.current&&S.ideas.length>0}}
+function tabAlerts(){return{nature:(S.disputes||[]).length>0,nations:warsOf(HOME).length>0,laws:S.cases.length>0||Object.keys(S.strikes).length>0,tasks:sitesList().some(b=>b.buried||b.damaged)||S.petitions.length>0||S.dilemmas.length>0,ideas:!S.research.current&&S.ideas.length>0}}
 function openSheet(tab){UI.tab=tab;UI.sheet=true;UI.secReset=true}
 
+function renderMinds(){
+  const ad=allM().filter(isAdult),cnt=k=>ad.filter(m=>m.life===k).length,sch=Object.values(S.schools||{}).sort((a,b)=>(b.members||0)-(a.members||0));
+  let h=`<h2>Minds</h2><p class="sub">Martians remember what happens to them, learn from it, decide for themselves what they want from life, and gather around ideas.</p>`;
+  h+=`<h3>Schools of thought</h3>`;
+  if(!sch.length)h+=`<p class="d">No schools yet. Thoughtful martians with something to say start them, often after a life full of experiences.</p>`;
+  for(const s of sch){const ns=allN().filter(n=>n.school===s.id&&n.met),f=M(s.founder),par=Sch(s.parent);
+    h+=`<div class="comm"><div class="chead"><span class="cdot" style="background:${s.color}"></span><strong>${esc(s.name)}</strong></div>
+      <p class="d" style="margin:4px 0">${schoolText(s)}</p>
+      <p class="kv"><span>Followers here <b>${s.members||0}</b></span>${ns.length?`<span>Countries <b>${ns.map(n=>esc(n.place)).join(', ')}</b></span>`:''}</p>
+      <p class="d">${s.native?`Native to ${esc(s.fname)}. Travelers carry it abroad.`:`Founded by ${esc(s.fname)} on sol ${s.sol}${par?`, breaking away from ${esc(par.name)}`:''}${f?'':'. Its founder has passed on'}.`}</p></div>`}
+  h+=`<p class="d">Followers drift toward what their school teaches. Popular schools ask the council for laws that match their beliefs, rival schools debate in public, and ideas spread to and from other countries. Peaceful countries rarely start wars, and warlike ones start them more often.</p>`;
+  h+=`<h3>Lives</h3><p class="kv"><span>Fulfilled <b>${cnt('fulfilled')}</b></span><span>Content <b>${cnt('content')}</b></span><span>Restless <b>${cnt('restless')}</b></span><span>Adrift <b>${cnt('adrift')}</b></span></p>
+    <p class="d">Every few sols each martian looks back on their life: their calling, the ones they love, their dreams, their grief. Restless martians set themselves a goal and practice toward it in their spare time, ideally with a master to teach them. Once they're good enough, they change callings on their own.</p>
+    <p class="kv"><span>Working toward a goal <b>${ad.filter(m=>m.aim).length}</b></span><span>With a mentor <b>${ad.filter(m=>m.aim&&M(m.guide)).length}</b></span></p>
+    <label class="toggle"><input type="checkbox" data-act="selfjobs" ${S.settings.selfJobs!==false?'checked':''}> Let martians change their own callings</label>
+    <p class="d">They never undo a calling you gave them in the last 8 sols.</p>`;
+  h+=`<h3>Lessons</h3>`;const ls=Object.keys(TRAITS).filter(k=>TRAITS[k].learned||k==='thrifty').map(k=>[k,ad.filter(m=>(m.learned||[]).some(l=>l.t===k)).length]).filter(x=>x[1]);
+  h+=ls.length?ls.map(([k,n])=>`<div class="wrow"><span>${TRAITS[k].name}<br><span class="d">${TRAITS[k].desc}</span></span><b>${n}</b></div>`).join(''):'<p class="d">Nobody has learned a lesson from life yet. Give it time.</p>';
+  h+=`<p class="d" style="margin-top:6px">Going hungry, losing a loved one, a raid, a disaster, a mentor's kindness or a dream come true can change who a martian is for good.</p>`;
+  h+=`<h3>Debates</h3>${(S.debates||[]).length?S.debates.map(d=>`<div class="wrow"><span>${esc(d.t)}</span><span class="d">sol ${d.s}</span></div>`).join(''):'<p class="d">No public debates yet. They start once rival schools have a few followers each.</p>'}`;
+  return h;
+}
+function renderNature(){
+  const yk=yearKind(),se=season(),md=[];for(let i=0;i<MAP_W*MAP_H;i++)if(S.map.feat[i]===FEAT.lichen&&S.map.seen[i])md.push(S.map.wild[i]??1);
+  const avg=md.length?md.reduce((a,b)=>a+b,0)/md.length:0,hall=builtOf('hall').some(working);
+  let h=`<h2>Nature</h2><p class="sub">The planet changes with the seasons, and pushes back when it's pushed too hard.</p>`;
+  h+=`<h3>Seasons</h3><p class="kv"><span>Now <b>${seasonPart()} ${se.name.toLowerCase()}</b></span><span>This year <b>${yk.name.replace(/^a /,'')}</b></span><span>Polar ice <b>${capDepth().toFixed(1)} tiles deep</b></span></p>
+    <p class="d">${se.desc} ${yk.desc} The polar ice creeps in from the top and bottom of the world each winter and pulls back in summer. Ice Wells on its edge draw more water.</p>`;
+  h+=`<h3>Wild lands</h3><p class="kv"><span>Wild meadows <b>${md.length}</b></span><span>How full <b>${Math.round(avg*100)}%</b></span><span>Law <b>${LAWS.wild.opts[wildLaw()].label}</b></span></p>
+    <p class="d">Foragers thin out the meadows they gather from. A meadow foraged bare dies off for good, while one left alone regrows and spreads in spring. Foraging limits let thin meadows recover, and nature reserves protect half of them entirely. You can change the law in the Laws tab.</p>`;
+  h+=`<h3>Air</h3>${allC().map(cm=>`<div class="wrow"><span>${esc(cm.name)}</span><span class="${(cm.air||0)>=0.45?'neg':(cm.air||0)>=0.15?'mood-low':'pos'}">${airWord(cm.air||0)}</span></div>`).join('')}
+    <p class="d" style="margin-top:6px">Glass Kilns, Warmstone Hearths and Vent Taps foul the air around them. Breathing smoke wears martians down and spreads rustlung. ${S.movement?`<b>${esc(S.movement.name[0].toUpperCase()+S.movement.name.slice(1))}</b> is campaigning for cleaner air.`:''} Clean air law: ${LAWS.air.opts[airLaw()].label.toLowerCase()}.</p>`;
+  h+=`<h3>Water</h3>${(S.disputes||[]).length?S.disputes.map(d=>`<div class="pet"><div class="who">${esc(C(d.a)?C(d.a).name:'?')} and ${esc(C(d.b)?C(d.b).name:'?')}</div><p class="d" style="margin:2px 0 6px">Quarreling over ${esc(d.what)} since sol ${d.since}. Their wells draw less until it's settled. ${hall?'The council will rule on it in time.':'Without a working Concord Hall, nobody can rule on it.'}</p>
+      <div class="actions" style="margin-top:0"><button class="btn small" data-act="envoy" data-id="${d.id}" ${S.treasury<150?'disabled':''}>Send envoys (◈ 150)</button></div></div>`).join(''):'<p class="d">No quarrels over water right now.</p>'}
+    <p class="d" style="margin-top:6px">${(S.sky||0)>=8?`The sky is ${(S.sky||0).toFixed(1)}% thick. That's melting the ice and raising the lakes, so floods can strike low ground near water.`:'Once the sky is thickened past 8%, melting ice will start raising the lakes and flooding low ground.'}</p>`;
+  h+=`<h3>Wildlife</h3>${Object.entries(FAUNA).map(([k,K])=>{const b=(S.bestiary||{})[k];if(!b||!b.seen)return`<div class="trow"><span class="bt"><strong>An unknown creature</strong><span class="d">Nobody has seen it yet. Keep exploring.</span></span></div>`;
+      const fs=(S.fauna||[]).filter(f=>f.k===k);return`<div class="trow" style="display:block"><strong>${K.name}</strong><div class="d">${K.desc}</div><p class="kv"><span>Wild <b>${fs.filter(f=>!f.tame&&!f.herd).length}</b></span>${K.herd?`<span>Herded <b>${fs.filter(f=>f.herd).length}</b></span>`:''}<span>Pets <b>${fs.filter(f=>f.tame).length}</b></span><span>Studied <b>${b.studied} times</b></span></p></div>`}).join('')}
+    <p class="d">Martians study creatures they come across, which earns lore. Kind-hearted martians sometimes tame one as a pet, and a Forager's Lodge will round up skitters and crawlers nearby into a herd.</p>`;
+  const qs=allB().filter(b=>b.type==='quarry');
+  h+=`<h3>Deposits</h3>${qs.length?qs.map(b=>`<div class="wrow"><span>${esc(bName(b))}${C(b.comm)?`, ${esc(C(b.comm).name)}`:''}</span><span class="${b.reserve!=null&&b.reserve<=0?'neg':''}">${b.reserve==null?'untouched':b.reserve<=0?'worked out':`${fmt(b.reserve)} left`}</span></div>`).join(''):'<p class="d">No quarries yet.</p>'}
+    <p class="d" style="margin-top:6px">Quarries slowly empty the ground, and communities sell the worked-out ones. Scouts find new ore veins on high ground and rare crystals in the crystal fields, and meteors leave ore veins in their craters. Known ore veins: ${S.map.feat.filter((f,i)=>f===FEAT.ore&&S.map.seen[i]).length}.</p>`;
+  return h;
+}
 function nationCard(n){
   const G=GOVS[n.gov],r=nRel(n.id,HOME),war=atWar(n.id,HOME),others=metN().filter(o=>o.id!==n.id);
   const foes=warsOf(n.id).map(w=>foeOf(w,n.id));
@@ -4458,7 +4987,7 @@ function nationCard(n){
     ${n.pact?`<p class="d pos">Trade pact: caravans bring about ◈ ${fmt(n.pop*0.6*G.trade)} a sol.</p>`:''}
     <div class="actions">${war?`<button class="btn small" data-act="nat" data-k="peace" data-id="${n.id}">Pay ◈ ${fmt(Math.max(300,S.treasury*0.08))} for peace</button>`:
       `<button class="btn small" data-act="nat" data-k="gift" data-id="${n.id}" ${solNum()-n.giftSol<2?'disabled':''}>Send gifts (◈ 200)</button>${n.pact?'':`<button class="btn small soft" data-act="nat" data-k="pact" data-id="${n.id}" ${r<20?'disabled':''}>Trade pact (◈ 500)</button>`}`}
-      <button class="btn small soft" data-act="nfocus" data-id="${n.id}">Show on map</button>${war?'':`<button class="btn small danger" data-act="nat" data-k="war" data-id="${n.id}">Declare war</button>`}</div>
+      <button class="btn small soft" data-act="nfocus" data-id="${n.id}">Show on map</button><button class="btn small soft" data-act="nat" data-k="spy" data-id="${n.id}" ${solNum()-(n.spySol??-99)<3?'disabled':''}>Send spies (◈ 300)</button>${war?'':`<button class="btn small danger" data-act="nat" data-k="war" data-id="${n.id}">Declare war</button>`}</div>
     ${!war&&!n.pact&&r<20?'<p class="d">A trade pact needs them to feel friendly toward you. Gifts help.</p>':''}</div>`;
   return h;
 }
@@ -4568,7 +5097,7 @@ function renderIdeas(){
   h+=`<h3>Your martians' ideas</h3>`;
   if(!S.ideas.length)h+=`<p class="d">No ideas yet. They come from work, so keep everyone busy. Tinkerers think of them much faster.</p>`;
   for(const i of S.ideas){const isCur=S.research.current==='idea:'+i.id;
-    h+=`<div class="trow${isCur?' cur':''}"><span class="bt"><strong>${i.eff.type==='unlock'?'✨ ':''}${esc(i.name)}</strong><span class="d">${effText(i.eff)}</span><span class="d">Thought up by ${esc(i.byName)} on sol ${i.sol}. Costs ${i.cost} lore.</span></span>
+    h+=`<div class="trow${isCur?' cur':''}"><span class="bt"><strong>${i.eff.type==='unlock'?'✨ ':''}${esc(i.name)}${i.redisc?' <span class="chip">Lost plans</span>':''}</strong><span class="d">${effText(i.eff)}</span><span class="d">Thought up by ${esc(i.byName)} on sol ${i.sol}. Costs ${i.cost} lore.</span></span>
       ${isCur?'':`<button class="btn small" data-act="dev" data-id="${i.id}">Develop</button>`}</div>`}
   h+=`<h3>Studies</h3>`;
   const order=Object.keys(TECHS).sort((a,b)=>(tech(a)-tech(b))||(techAvailable(b)-techAvailable(a))||(TECHS[a].cost-TECHS[b].cost));
@@ -4578,6 +5107,12 @@ function renderIdeas(){
       <span class="d">${need.length?`Needs ${need.join(' and ')} first.`:`Costs ${T2.cost} lore.`}</span></span>${avail&&!isCur?`<button class="btn small" data-act="study" data-tech="${key}">Study</button>`:''}</div>`}
   const done=S.research.done.map(k=>TECHS[k].name);
   if(done.length)h+=`<p class="d">Already learned: ${done.join(', ')}.</p>`;
+  {const EW={lattice:'The colony can store 300 more hum, for good.',lens:'Your current study is finished at once.',quicken:'Lichen Tenders work 15% faster.',deepspore:'Every budling from now on starts with more skill.'};
+   h+=`<h3>Experiments</h3><p class="sub">Risky experiments can pay off hugely, or blow up the lab. Skilled archivists and universities improve the odds, which are about ${Math.round(expChance()*100)}% right now.</p>`;
+   if(S.exp)h+=`<p class="note">An experiment is under way: ${esc(EXPERIMENTS[S.exp.k].name.toLowerCase())}. It finishes next sol.</p>`;
+   if(!labs().length)h+=`<p class="note warn">Experiments need a working Dream Archive or University.</p>`;
+   for(const [k,E] of Object.entries(EXPERIMENTS))h+=`<div class="trow"><span class="bt"><strong>${E.name}</strong><span class="d">If it works: ${EW[k]}</span><span class="d">Costs ${E.lore} lore and ◈ ${E.glint}.</span></span><button class="btn small" data-act="exp" data-k="${k}" ${S.exp||!labs().length?'disabled':''}>Try it</button></div>`;
+   if(S.lost&&S.lost.length)h+=`<h3>Lost knowledge</h3><p class="d">Plans lost to fire: ${S.lost.map(i=>esc(i.name)).join(', ')}. Archivists slowly piece them back together, and each one returns as an idea marked "Lost plans". A second Dream Archive keeps copies, and the Hall of Echoes protects everything.</p>`}
   if(S.inventions.length){h+=`<h3>Inventions (${S.inventions.length})</h3>`;
     for(const i of [...S.inventions].reverse().slice(0,12))h+=`<div class="wrow"><span>${esc(i.name)}<br><span class="d">${effText(i.eff)}</span></span><span class="d">sol ${i.sol}</span></div>`}
   if(S.unlockedJobs.length)h+=`<p class="d" style="margin-top:8px">Callings your martians invented: ${S.unlockedJobs.map(j=>JOBS[j].name).join(', ')}.</p>`;
@@ -4600,6 +5135,15 @@ function renderProjects(){
   const sites=allB().filter(b=>BUILD[b.type].wonder&&!b.built);
   if(sites.length){h+=`<label class="lbl" for="investSel">Put spare Glint toward a great work every sol</label><select id="investSel" data-act="investtarget"><option value="">Nothing automatically</option>${sites.map(b=>`<option value="${b.id}" ${S.invest.target===b.id?'selected':''}>${esc(wonderTitle(b))}</option>`).join('')}</select>
     <div class="wrow"><span>Keep in the treasury<br><span class="d">Only Glint above this is invested</span></span><span class="stepper"><button data-act="keep" data-d="-250" aria-label="Lower">−</button><b>◈ ${fmt(S.invest.keep)}</b><button data-act="keep" data-d="250" aria-label="Raise">+</button></span></div>`}
+  {const pad=padOf(),sp=S.space||{sats:{}};h+=`<h3>Space program</h3>`;
+   if(!tech('rocketry'))h+=`<p class="d">Study Rocketry, which needs Sky weaving, to build a Launch Pad and start a space program: satellites, a base on Phobos, and a signal to Earth.</p>`;
+   else if(!pad)h+=`<p class="d">${allB().some(b=>b.type==='launchpad')?'The Launch Pad is still being built.':'Build a Launch Pad to start launching missions.'}</p>${allB().some(b=>b.type==='launchpad')?'':`<div class="actions"><button class="btn small" data-act="build" data-type="launchpad">Choose a site</button></div>`}`;
+   else{if(pad.damaged)h+=`<p class="note warn">The Launch Pad is damaged. Sculptors need to repair it before the next launch.</p>`;
+     if(sp.prep)h+=`<div class="trow cur" style="display:block"><strong>Building a rocket for the ${esc(MISSIONS[sp.prep.k].name.toLowerCase())}</strong>${bar(sp.prep.done/sp.prep.need*100,'var(--sunset)')}<div class="d">Launch in about ${Math.max(1,Math.ceil((sp.prep.need-sp.prep.done)/(1+0.5*unisOf('sky'))))} sol${Math.ceil((sp.prep.need-sp.prep.done)/(1+0.5*unisOf('sky')))>1?'s':''}. Rockets sometimes explode.</div></div>`;
+     for(const [k,M0] of Object.entries(MISSIONS)){const done=missionDone(k),locked=M0.req&&!M0.req();
+       h+=`<div class="trow${done?' done':''}" style="display:block"><strong>${M0.name}${done?' <span class="pos">done</span>':''}</strong><div class="d">${M0.desc}</div>${done?'':`<div class="d">${locked?`Needs ${M0.need} first. `:''}Costs ◈ ${fmt(M0.cost.glint)}, ${M0.cost.glass} sandglass and ${M0.hum} hum, and takes ${M0.sols} sols to build.</div>
+         <div class="actions"><button class="btn small" data-act="mission" data-k="${k}" ${locked||sp.prep||pad.damaged?'disabled':''}>Build the rocket</button></div>`}</div>`}
+     h+=`<p class="kv"><span>Launches <b>${sp.launches||0}</b></span><span>Explosions <b>${sp.fails||0}</b></span>${sp.phobos?`<span>Phobos Base <b>${sp.phobos.pop} martians</b></span>`:''}${sp.earth?`<span>Earth <b>${sp.earth.answer?'answered':'listening'}</b></span>`:''}</p>`}}
   h+=`<h3>Endowments</h3><p class="sub">One-time investments that keep paying off forever. Each can grow, at twice the cost each time.</p>`;
   for(const k in ENDOW){const E=ENDOW[k],lv=endowLvl(k),maxed=lv>=E.max,cost=endowCost(k);
     h+=`<div class="trow" style="display:block"><strong>${E.name}${E.max>1?` <span class="d">level ${lv} of ${E.max}</span>`:lv?' <span class="pos">done</span>':''}</strong>
@@ -4757,8 +5301,16 @@ function inspectMartian(m){
     <div>${m.traits.map(t=>`<span class="chip" title="${esc(TRAITS[t].desc)}">${TRAITS[t].name}</span>`).join('')}${(m.perks||[]).map(p=>`<span class="chip perk" title="${esc(PERKS[p].desc)}">${PERKS[p].name}</span>`).join('')}</div>
     ${m.dream?`<p class="d"><b>Dream:</b> to ${DREAMS[m.dream.type].text(m.dream.arg)}${dreamProgress(m)?` (${dreamProgress(m)})`:''}.${m.bitter?' Time is running out.':''}</p>`:m.dreamsDone?`<p class="d">Has seen ${m.dreamsDone===1?'a dream':`${m.dreamsDone} dreams`} come true.</p>`:''}
     ${m.grief>3?`<p class="d">Grieving a loss.</p>`:''}
+    ${m.pet&&faunaOf(m.pet)?`<p class="d">Has a pet ${FAUNA[faunaOf(m.pet).k].name.toLowerCase()} that follows them everywhere.</p>`:''}
     <div class="kv">${M(m.bond)?`<span>Bonded to <b>${esc(M(m.bond).name)}</b></span>`:''}${m.party?`<span>Votes with <b style="color:${partyById(m.party).color}">${partyById(m.party).name}</b></span>`:''}${C(m.comm)?`<span>Lives in <b>${esc(C(m.comm).name)}</b></span>`:''}<span>Believes <b>${ethosLabel(m.ethos)}</b></span>${m.inventions?`<span>Inventions <b>${m.inventions}</b></span>`:''}${m.fame>=1?`<span>Fame <b>${Math.floor(m.fame)}</b></span>`:''}</div>
     ${(m.fr.length||m.rv.length)?`<p class="d">${m.fr.length?`Friends with ${m.fr.map(id=>M(id)).filter(Boolean).slice(0,4).map(f=>esc(f.name)).join(', ')}. `:''}${m.rv.length?`Can't stand ${m.rv.map(id=>M(id)).filter(Boolean).slice(0,3).map(f=>esc(f.name)).join(', ')}.`:''}</p>`:''}
+    <h3 class="sech" data-sec="Mind">Mind</h3>
+    <p class="d"><b>Looking back:</b> ${lifeWord[m.life]||'Still finding their way'}. ${esc(lifeLine(m))}</p>
+    ${m.aim&&JOBS[m.aim.job]?`<p class="d"><b>Goal:</b> to become ${aan(JOBS[m.aim.job].name)}. Practicing since sol ${m.aim.since}${M(m.guide)?`, taught by ${esc(M(m.guide).name)}`:''}, skill ${Math.round(m.skills[m.aim.job]||0)}.</p>`:''}
+    <p class="d"><b>Philosophy:</b> ${Sch(m.school)?`follows ${esc(Sch(m.school).name)}. ${schoolText(Sch(m.school))}`:"hasn't joined a school of thought."}</p>
+    <p class="d">${esc(beliefLine(m))}</p>
+    ${(m.learned||[]).length?`<div>${m.learned.map(l=>`<span class="chip perk" title="${esc(TRAITS[l.t].desc)}">${TRAITS[l.t].name}, after ${esc(l.why)}</span>`).join('')}</div>`:''}
+    ${(m.mem||[]).length?`<ul class="mem">${m.mem.slice(0,6).map(x=>`<li class="${x.w>0?'pos':x.w<0?'neg':''}"><span class="when">Sol ${x.s}</span>${esc(x.t)}${x.n>1?` (${x.n} times)`:''}</li>`).join('')}</ul>`:'<p class="d">No memories worth keeping yet.</p>'}
     <h3 data-sec="Skills">Aptitudes</h3><div class="skills">${Object.entries(ATTRS).map(([k,n])=>`<span>${n}</span>${bar(m.attr[k],'var(--rose)')}<span>${Math.round(m.attr[k])}</span>`).join('')}<span>Next idea</span>${bar(m.insight*100,'var(--lantern)')}<span>${Math.round(m.insight*100)}%</span></div>
     <h3 data-sec="Skills">Best skills</h3><div class="skills">${WORK_JOBS.map(j=>[j,m.skills[j]]).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([j,v])=>`<span>${JOBS[j].name}</span>${bar(v,'var(--sunset)')}<span>${Math.round(v)}</span>`).join('')}</div>`;
   let ad='';
@@ -4790,6 +5342,11 @@ function inspectBuilding(b){
     ${b.bonus?`<p class="d">Works ${Math.round(b.bonus*100)}% better thanks to ${AFFINITY[b.type].why} nearby.</p>`:AFFINITY[b.type]?`<p class="d">Would work better next to ${AFFINITY[b.type].why}.</p>`:''}
     ${b.forage?`<p class="d">Wild spots in reach give about ${Math.round(b.forage.lichen*WORK_TICKS)} lichen and ${Math.round(b.forage.water*WORK_TICKS)} water per forager a sol.</p>`:''}
     ${b.type!=='hearthstone'&&C(b.comm)?`<p class="d">Part of ${esc(C(b.comm).name)}.</p>`:''}
+    ${b.type==='university'?`<label class="lbl" for="ufield">Field of study</label><select id="ufield" data-act="ufield" data-id="${b.id}">${Object.entries(FIELDS).map(([k,F])=>`<option value="${k}" ${(b.field||'song')===k?'selected':''}>${F.name}: ${F.desc}</option>`).join('')}</select>
+      <p class="d">Everything in ${FIELDS[b.field||'song'].name.toLowerCase()} is studied 60% faster for each university that specializes in it.</p>`:''}
+    ${b.type==='mast'?`<p class="d">${forecastOn()?'Storm Watchers are on watch. Storms and meteors will be spotted a sol early.':'Nobody is on watch. Give a Storm Watcher a calling here.'}</p>`:''}
+    ${b.type==='quarry'?`<p class="d">${b.reserve==null?'Untouched ground, rich with regolith.':b.reserve<=0?'Worked out: there is no regolith left here.':`About ${fmt(b.reserve)} regolith left in the ground.`}${featNear(b.tx,b.ty,1,FEAT.ore)?' It sits beside an ore vein.':''}</p>`:''}
+    ${POLLUTERS[b.type]&&b.built?`<p class="d">Its smoke fouls the air nearby. Air here: ${airWord(S.map.smog?S.map.smog[T(b.tx,b.ty)]/2:0).toLowerCase()}.</p>`:''}
     ${b.type==='beacon'?`<p class="d">Light gathered: ${Math.round((b.charge||0)*100)}%. Answers so far: ${S.beaconGifts}.</p>`:''}
     ${d.wonder&&!b.built?`<p class="d"><b>${wonderTitle(b)}</b>: ◈ ${fmt(b.fund||0)} of ◈ ${fmt(b.fundNeed)} funded.${wonderGated(b)?' The sculptors are waiting for more funding.':''}</p>${bar((b.fund||0)/Math.max(1,b.fundNeed)*100,'var(--sunset)')}
       <div class="actions"><button class="btn small" data-act="invest" data-id="${b.id}" data-n="250" ${S.treasury<1?'disabled':''}>Invest ◈ 250</button><button class="btn small soft" data-act="invest" data-id="${b.id}" data-n="1000" ${S.treasury<1?'disabled':''}>Invest ◈ 1,000</button><button class="btn small soft" data-act="invest" data-id="${b.id}" data-n="all">Invest everything above your reserve</button></div>`:''}
@@ -4866,6 +5423,9 @@ function act(el,ev){
       if(on&&!(t==='more'&&UI.tab!=='more'))UI.sheet=false;else openSheet(t);if(UI.sheet&&UI.sel&&UI.phone)UI.sel=null;break}
     case'sheet-close':UI.sheet=false;break;
     case'nat':natAct(el.dataset.k,id);break;
+    case'exp':startExperiment(el.dataset.k,false);break;
+    case'mission':startMission(el.dataset.k);break;
+    case'envoy':{const d=(S.disputes||[]).find(x=>x.id===id);if(d){if(S.treasury<150)toast('Envoys cost ◈ 150.','warn');else{S.treasury-=150;led('diplomacy',-150);trustAdd('comm',d.a,6);trustAdd('comm',d.b,6);settleDispute(d,'envoys')}}break}
     case'nfocus':{const n=N_(id),t=n&&(n.towns.find(t=>t.cap)||n.towns[0]);if(t){UI.glide={x:t.x+0.5,y:t.y+0.5};CAM.zoom=Math.max(CAM.zoom,0.9);if(UI.phone)UI.sheet=false}break}
     case'sec':{UI.secSel[el.dataset.key]=el.dataset.sec;UI.secReset=true;break}
     case'mpage':UI.mpage=(UI.mpage||0)+(+el.dataset.d);UI.secReset=true;break;
@@ -4938,12 +5498,14 @@ function onChange(el){
   else if(a==='autopave')S.autoPave=el.checked;
   else if(a==='bubbles')S.settings.bubbles=el.checked;
   else if(a==='prune')S.growth.prune=el.checked;
+  else if(a==='selfjobs')S.settings.selfJobs=el.checked;
+  else if(a==='ufield'){const b=B(+el.dataset.id);if(b){b.field=el.value;chronicle(`The ${bName(b)} now specializes in ${FIELDS[el.value].name.toLowerCase()}.`,'info')}}
   else if(a==='keepb'){const b=B(+el.dataset.id);if(b)b.keep=el.checked}
   else if(a==='investtarget')S.invest.target=el.value?+el.value:null;
   else if(a==='commauto'){const cm=C(+el.dataset.id);if(cm)cm.auto=el.checked}
   else if(a==='importfile'){const f=el.files&&el.files[0];if(f){const r=new FileReader();r.onload=()=>importSave(String(r.result));r.readAsText(f)}return}
   else if(a==='exppick')UI.expPick[el.dataset.e]=+el.value;
-  else if(a==='assign'){
+  else if(a==='assign'){if(M(+el.dataset.id)){M(+el.dataset.id).byYou=solNum();M(+el.dataset.id).aim=null}
     const m=M(+el.dataset.id);if(!m)return;const v=el.value;
     if(v==='none')assignJob(m,'none',null);
     else if(v==='sculptor')assignJob(m,'sculptor',null);
@@ -4966,7 +5528,7 @@ function refreshUI(force){
   }
   const p=$('#panel');
   if(!UI.phone||UI.sheet){
-    const html=({build:renderBuild,martians:renderMartians,communities:renderCommunities,market:renderMarket,projects:renderProjects,ideas:renderIdeas,laws:renderLaws,tasks:renderTasks,news:renderNews,more:renderMore,nations:renderNations}[UI.tab]||renderBuild)();
+    const html=({build:renderBuild,martians:renderMartians,communities:renderCommunities,market:renderMarket,projects:renderProjects,ideas:renderIdeas,laws:renderLaws,tasks:renderTasks,news:renderNews,more:renderMore,nations:renderNations,nature:renderNature,minds:renderMinds}[UI.tab]||renderBuild)();
     if(force||html!==UI.lastPanel){
       const st=UI.secReset?0:p.scrollTop,ob=p.querySelector('.secbar'),sl=ob?ob.scrollLeft:0;
       p.innerHTML=html;UI.lastPanel=html;sectionize(p,'tab:'+UI.tab,SEC_GROUPS[UI.tab],secAlerts(UI.tab));
@@ -4978,7 +5540,22 @@ function refreshUI(force){
 }
 
 /* ================= save / load ================= */
-const packSave=()=>JSON.stringify({format:'martian-hollow',version:SAVE_VERSION,savedAt:Date.now(),state:S});
+// numbers are trimmed to three decimals and walking paths are dropped, which makes saves about a fifth smaller
+const packSave=()=>JSON.stringify({format:'martian-hollow',version:SAVE_VERSION,savedAt:Date.now(),state:S},(k,v)=>typeof v==='number'?(Number.isInteger(v)?v:Math.round(v*1000)/1000):k==='path'?[]:k==='goalKey'?'':v);
+/* big colonies don't fit in the browser's small save space, so saves are compressed (about 8 times smaller)
+   and kept in the browser's database, which has far more room. The small space keeps a compressed copy too. */
+const canZip=()=>typeof CompressionStream!=='undefined'&&typeof DecompressionStream!=='undefined'&&typeof Response!=='undefined';
+async function gz(txt){return new Uint8Array(await new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer())}
+async function gunz(bytes){return await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text()}
+function b64(bytes){let s='';for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s)}
+function unb64(str){const s=atob(str),b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b}
+async function packCode(txt){txt=txt||packSave();if(!canZip())return'MH:'+txt;return'MHZ:'+b64(await gz(txt))}
+async function unpackCode(code){code=String(code).trim();if(code.startsWith('MHZ:')){if(!canZip())throw new Error('This browser is too old to open compressed saves');return await gunz(unb64(code.slice(4).replace(/\s+/g,'')))}return code.replace(/^\s*MH:/,'')}
+const SAVE_DB='martian-hollow',SAVE_STORE='saves';
+function idbOpen(){return new Promise((res,rej)=>{if(typeof indexedDB==='undefined')return rej(new Error('no database'));let r;try{r=indexedDB.open(SAVE_DB,1)}catch(e){return rej(e)}
+  r.onupgradeneeded=()=>r.result.createObjectStore(SAVE_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'))})}
+async function idbPut(k,v){const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(SAVE_STORE,'readwrite');t.objectStore(SAVE_STORE).put(v,k);t.oncomplete=()=>{db.close();res()};t.onerror=t.onabort=()=>{db.close();rej(t.error||new Error('write failed'))}})}
+async function idbGet(k){const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(SAVE_STORE,'readonly'),q=t.objectStore(SAVE_STORE).get(k);q.onsuccess=()=>{db.close();res(q.result)};q.onerror=()=>{db.close();rej(q.error)}})}
 function loadState(raw){
   const s=migrateSave(raw);S=s;sanitizeLoaded();
   UI.sel=null;UI.buildType=null;UI.logSeen=-1;UI.mapVer++;focusHome();refreshUI(true);
@@ -4986,30 +5563,41 @@ function loadState(raw){
 const inClaude=()=>typeof window!=='undefined'&&!!window.storage;
 function localStore(){try{if(typeof window==='undefined'||inClaude()||!window.localStorage)return null;const k='__mh_test';window.localStorage.setItem(k,'1');window.localStorage.removeItem(k);return window.localStorage}catch(e){return null}}
 async function saveGame(silent){
-  const txt=packSave();
-  if(inClaude()){
-    try{await window.storage.set(SAVE_KEY,txt,false);UI.lastSaved=Date.now();if(!silent)toast('Colony saved.','joy')}
-    catch(e){if(!silent)toast('Could not save just now. Try again in a moment.','warn')}
-    return;
-  }
-  const ls=localStore();
-  if(!ls){if(!silent)toast('This browser will not let the game save. Use a backup code to keep your colony.','warn');return}
-  try{ls.setItem(SAVE_KEY,txt);UI.lastSaved=Date.now();if(!silent)toast('Colony saved on this device.','joy')}
-  catch(e){if(!silent)toast('This device is out of room for saves. Use a backup code.','warn')}
+  if(UI.saving)return;UI.saving=true;
+  try{
+    const txt=packSave(),code=await packCode(txt);
+    if(inClaude()){
+      try{await window.storage.set(SAVE_KEY,code,false);UI.lastSaved=Date.now();if(!silent)toast('Colony saved.','joy')}
+      catch(e){if(!silent)toast('Could not save just now. Try again in a moment.','warn')}
+      return;
+    }
+    let ok=false;
+    try{await idbPut(SAVE_KEY,code);ok=true}catch(e){}
+    const ls=localStore();
+    if(ls){try{ls.setItem(SAVE_KEY,code);ok=true}catch(e){try{ls.removeItem(SAVE_KEY)}catch(e2){}}for(const k of LEGACY_SAVE_KEYS)try{ls.removeItem(k)}catch(e){}}
+    if(ok){UI.lastSaved=Date.now();if(!silent)toast('Colony saved on this device.','joy')}
+    else if(!silent)toast('This browser would not save the colony. Keep a backup from Tasks, Settings, Your save.','warn');
+  }catch(e){if(!silent)toast('Could not save just now. Try again in a moment.','warn')}
+  finally{UI.saving=false}
 }
 async function readStored(){
-  if(inClaude()){for(const key of [SAVE_KEY,...LEGACY_SAVE_KEYS]){try{const r=await window.storage.get(key,false);if(r&&r.value)return r.value}catch(e){}}return null}
-  const ls=localStore();if(!ls)return null;
-  for(const key of [SAVE_KEY,...LEGACY_SAVE_KEYS]){try{const v=ls.getItem(key);if(v)return v}catch(e){}}
-  return null;
+  if(inClaude()){for(const key of [SAVE_KEY,...LEGACY_SAVE_KEYS]){try{const r=await window.storage.get(key,false);if(r&&r.value)return await unpackCode(r.value)}catch(e){}}return null}
+  // the database and the small space can each hold a copy: use whichever is newest
+  const found=[];
+  try{const v=await idbGet(SAVE_KEY);if(v)found.push(await unpackCode(v))}catch(e){}
+  const ls=localStore();
+  if(ls)for(const key of [SAVE_KEY,...LEGACY_SAVE_KEYS]){try{const v=ls.getItem(key);if(v){found.push(await unpackCode(v));break}}catch(e){}}
+  if(!found.length)return null;
+  const when=t=>{const m=/"savedAt":(\d+)/.exec(t.slice(0,200));return m?+m[1]:0};
+  return found.sort((a,b)=>when(b)-when(a))[0];
 }
 async function loadGame(){
   const txt=await readStored();if(!txt)return false;
   try{loadState(JSON.parse(txt));return true}catch(e){toast(`That save could not be opened: ${e.message}`,'warn');return false}
 }
 async function hasSave(){return !!(await readStored())}
-function importSave(txt){
-  try{const raw=JSON.parse(txt.replace(/^\s*MH:/,''));loadState(raw);closeModal();UI.booted=true;saveGame(true);toast(`Restored ${S.colony}.`,'joy')}
+async function importSave(txt){
+  try{const raw=JSON.parse(await unpackCode(txt));loadState(raw);closeModal();UI.booted=true;saveGame(true);toast(`Restored ${S.colony}.`,'joy')}
   catch(e){toast(e instanceof SyntaxError?'That backup code is incomplete. Copy the whole thing and try again.':`That save could not be opened: ${e.message}`,'warn')}
 }
 function downloadSave(){
@@ -5020,13 +5608,14 @@ function downloadSave(){
 function openBackup(){
   openModal(`<h2>Back up or restore</h2>
     <p>This code holds your whole colony. Keep it somewhere safe. Paste it into any version of the game, including future updates, to carry on where you left off.</p>
-    <textarea id="saveCode" class="code" readonly>${esc(packSave())}</textarea>
+    <textarea id="saveCode" class="code" readonly>Preparing your code...</textarea>
     <div class="actions"><button class="btn small" data-act="export-copy">Copy code</button><button class="btn small soft" data-act="export-dl">Download as a file</button></div>
     <h3>Restore a colony</h3><p class="sub">This replaces the colony you have open now.</p>
     <textarea id="importCode" class="code" placeholder="Paste a backup code here"></textarea>
     <div class="actions"><button class="btn small" data-act="import">Restore from code</button>
     <label class="btn small soft" style="cursor:pointer">Open a file<input type="file" accept=".json,application/json,text/plain" data-act="importfile" hidden></label>
     <button class="ghost" data-act="close-modal">Close</button></div>`,{pause:true});
+  packCode().then(c=>{const ta=$('#saveCode');if(ta)ta.value=c}).catch(()=>{const ta=$('#saveCode');if(ta)ta.value='MH:'+packSave()});
 }
 function showDilemma(d){
   if(!$('#modal').hidden){toast('A decision is waiting in the Tasks tab.','law');return}
